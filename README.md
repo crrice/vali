@@ -5,6 +5,10 @@ A simple javascript object validation library.
 
 `npm install @crrice/vali`
 
+Note that this package depends on newer ECMAScript features such as `Array.prototype.every`,
+`Array.prototype.some`, `Object.prototype.entries`, and property descriptors. Make sure that
+these are polyfilled if you intend to use this package in an older runtime.
+
 # Usage
 
 ### Create a validator function:

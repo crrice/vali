@@ -199,3 +199,12 @@ barValidator({bar: 10})          // false
 barValidator({bar: "", foo: ""}) // false, additional keys not allowed, key 'foo' not specified in shape.
 
 ```
+
+The built in modifiers are idempotent, which means you may add the modifier multiple
+times and there will be no ill-effect. So
+
+`V.shape({foo: V.string.optional.optional}).noextra.noextra`
+
+is just the same as
+
+`V.shape({foo: V.string.optional}).noextra`

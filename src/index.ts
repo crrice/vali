@@ -3,6 +3,19 @@
 // The V Object \\
 //--------------\\
 
+/*
+
+Possible additions:
+
+ - add null, undefined to primitives list?
+ - add regex type
+ - add custom string validators
+   - is email
+   - is zip code
+   - etc.
+
+ */
+
 export const V = {
 	get string() {
 		return makeV(v => typeof v === "string");

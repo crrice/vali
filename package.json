@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A simple object validation library for javascript.",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "repository": {
   	"type": "git",
   	"url": "git+https://github.com/crrice/vali.git"

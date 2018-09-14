@@ -1,0 +1,14 @@
+{
+  "name": "vali",
+  "version": "1.0.0",
+  "description": "A simple object validation library for javascript.",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Conor Rice",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^3.0.3"
+  }
+}

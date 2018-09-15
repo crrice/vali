@@ -48,7 +48,7 @@ if (validate(obj)) {
 
 ```
 
-# API Reference
+# Guide
 
 ### Validator functions:
 
@@ -212,3 +212,31 @@ times and there will be no ill-effect. So
 is just the same as
 
 `V.shape({foo: V.string.optional}).noextra`
+
+# API Reference
+
+### Validator functions:
+
+Without arguments:
+
+ - `V.string` Returns true iff its input is a string.
+ - `V.number` Returns true iff its input is a number (including NaN).
+ - `V.boolean` Returns true iff its input is a boolean.
+
+With arguments:
+
+ - `V.literal(value)` Returns true if its input is exactly (===) the same as the passed value.
+ - `V.arrayOf(validator)` Returns true if the input is an array and all members of the array are of the specified type.
+ - `V.oneOf(...validators)` Returns true if the input is one of the specified types.
+ - `V.allOf(...validators)` Returns true if the input is all of the specified types.
+ - `V.custom(function)` Returns true if the function returns a truthy value when given the input.
+ - `V.shape(object)` Returns true if the input is an object that matches the types of all specified keys.
+
+### Validator modifiers:
+
+ - `optional`
+   - Only takes effect when used on a validator that is a field inside a `V.shape` schema.
+   - Allows the key it is attached to to be ommited, and the `V.shape` validator will still return true.
+ - `noextra`
+   - Only takes effect when used on a `V.shape` validator.
+   - Disallows extra keys in the input. Keys in the input that are not specified in the schema will cause the validator to return false.

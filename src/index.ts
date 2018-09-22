@@ -73,7 +73,7 @@ const V = {
 		// This is a more complex one so I will define the function separately (imagine this on one line, lol)...
 		function isShape(v: unknown): v is T {
 			if (!v || typeof v !== "object") return false;
-			return Object.entries(shape_spec).every(([k, mpx]: any) => k in (v as any) ? mpx(v) : mpx["_optional"]);
+			return Object.entries(shape_spec).every(([k, mpx]: any) => k in (v as any) ? mpx((v as any)[k]) : mpx["_optional"]);
 		}
 
 		return prox(isShape, Object.assign({},

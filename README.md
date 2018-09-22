@@ -256,15 +256,23 @@ With arguments:
 
 ### Validator modifiers:
 
+#### Syntax:
+
  - modifier[(arguments)]: Applies to
    - Effects
-<br>
+
+#### Modifiers:
+
+##### Global:
+
  - `optional`: Global
    - Only takes effect when used on a validator that is a field inside a `V.shape` schema.
    - Allows the key it is attached to to be ommited, and the `V.shape` validator will still return true.
  - `custom(func)`: Global
    - Causes validator to fail if the given function returns falsy when passed the input value.
-<br>
+
+##### Number:
+
  - `integer`: Number
    - Ensures value has no fractional part.
  - `max(num)`: Number
@@ -277,7 +285,9 @@ With arguments:
    - Ensures value is strictly greater than the given number.
  - `interval(range)`: Number
    - Ensures value is within the specified interval (uses mathematical interval notation).
-<br>
+
+##### String:
+
  - `regex(rgx)`: String
    - Ensures value passes given regex.
  - `email`: String
@@ -288,11 +298,15 @@ With arguments:
    - Ensures value uses valid standard base64 encoding.
  - `hex`: String
    - Ensures value uses valid hex encoding.
-<br>
+
+##### Shape:
+
  - `noextra`: Shape
    - Only takes effect when used on a `V.shape` validator.
    - Disallows extra keys in the input. Keys in the input that are not specified in the schema will cause the validator to return false.
-<br>
+
+##### Mixed:
+
  - `minLength(num)`: String, Array
    - Ensures the value has a length greater than or equal to the given number.
  - `maxLength(num)`: String, Array

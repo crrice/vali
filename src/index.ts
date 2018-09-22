@@ -59,6 +59,7 @@ const V = {
 	arrayOf<T>(type: ModProxy<T>) {
 		return prox(function(v: unknown): v is T[] { return v instanceof Array && v.every(e => type(e)); }, Object.assign({},
 			GLOBAL_MODS,
+			ARRAY_MODS,
 		));
 	},
 
@@ -168,7 +169,19 @@ const STRING_MODS: ModSet<string> = {
 	alphanumeric: o => (o.f.push(v => /^[a-zA-Z0-9]*$/.test(v)), o),
 	base64: o => (o.f.push(v => /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(v)), o),
 	hex: o => (o.f.push(v => /^([abcdef0-9]{2})*$/.test(v)), o),
-}
+
+	minLength: mod((len: number) => v => v.length >= len),
+	maxLength: mod((len: number) => v => v.length <= len),
+};
+
+//--------\\
+// Arrays \\
+//--------\\
+
+const ARRAY_MODS: ModSet<any[]> = {
+	minLength: mod((len: number) => v => v.length >= len),
+	maxLength: mod((len: number) => v => v.length <= len),
+};
 
 //--------\\
 // Shapes \\

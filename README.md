@@ -1,13 +1,13 @@
 # Váli
-A simple javascript object validation library.
+A simple javascript object validation library with kickass typescript integration.
 
 # Install
 
 `npm install @crrice/vali`
 
-Note that this package depends on newer ECMAScript features such as `Array.prototype.every`,
-`Array.prototype.some`, `Object.prototype.entries`, and property descriptors. Make sure that
-these are polyfilled if you intend to use this package in an older runtime.
+Note that this package requires an ECMAScript 6 compatible runtime to work.
+It should work on all up-to-date browsers, but will require polyfills for
+older runtimes.
 
 # Usage
 
@@ -48,6 +48,41 @@ if (validate(obj)) {
 
 ```
 
+### TypeScript
+
+If you're using TypeScript, a validator function will act as a type-guard for
+the type it validates:
+
+```typescript
+
+// For our example above, the `validate` function would act as a type guard
+// for the following interface:
+interface Validated {
+	message: string;
+	count: number;
+
+	options?: {
+		type?: "sms" | "email";
+		targets?: string[];
+	};
+}
+
+// Make sure the thing to validate does not have type `any`.
+// Use the type `unknown` in its place.
+const obj: unknown = JSON.parse(/* some json string */);
+
+if (validate(obj)) {
+	// obj is now assignable to the `Validated` interface.
+	const myObj: Validated = obj;
+
+	// Or, you can access properties directly and they will be typed correctly:
+	if (obj.options && obj.options.targets) {
+		const uppered = obj.options.targets.map(s => s.toUpperCase());
+	}
+}
+
+```
+
 # Guide
 
 ### Validator functions:
@@ -56,7 +91,7 @@ All validator functions are functions of the form:
 
 `(object: any) => boolean`
 
-The following `V` functions take no arguments:
+The following `V` functions can be used directly:
 
 ```javascript
 
@@ -95,6 +130,7 @@ V.literal({})({})          // false, two distinct objects are never `===`.
 // Check if value is an array of some type:
 
 V.arrayOf(V.number)(3.1415926) // false, input is not an array
+V.arrayOf(V.number)(["str"])   // false, not all elements are numbers
 V.arrayOf(V.number)([1, 2, 3]) // true
 V.arrayOf(V.number)([])        // true, empty arrays are valid for any array type
 
@@ -113,53 +149,12 @@ V.shape({foo: V.string})({foo: "", bar: 10}) // true, extra properties are okay
 
 ```
 
-We also support custom validators so you can further restrict the type of your
-inputs to be whatever you can dream up. We do this by using the `V.custom` function
-or by combining existing validators with a custom function using `V.allOf`.
-
-You can also use a plain function wherever a validation function is expected, without
-needing it to be wrapped in the `V.custom` method. So for example:
-
-`V.shape({foo: v => v instanceof MyClass})`
-
-is a perfectly valid shape spec. However, wrapping your custom validators in `V.custom`
-will allow you to chain modifiers onto them. See the modifiers section for more.
-
-```javascript
-
-// Example custom validator: is truthy:
-
-V.custom(v => !!v)(0)  // false, 0 is falsy
-V.custom(v => !!v)({}) // true, {} is truthy
-
-```
-
-You can use the `V.allOf` method to combine validators. The `V.allOf` method will take
-all the validators it is given and produce a new function that returns true only if all
-of it's component validators return true. This is particularly helpful when you want
-to extend a validator you already have to be more specific:
-
-```javascript
-
-// Example extended validator: is number between 1 and 100.
-
-V.allOf(V.number, v => v >=0 && v <= 100)(77) // true
-V.allOf(V.number, v => v >=0 && v <= 100)(-1) // false
-
-// the V.allOf function will bail out on the first fail, making it safe to
-// assume that all prior ones have passed when looking at the value in later ones.
-// This is helpful when you want to use a prototype method on the type, for example.
-
-V.allOf(V.string, v => v.startsWith("safe"))(undefined) // false, and safe to call with any value
-
-```
-
 ### Validation Modifiers
 
-Modifiers can be added to the end of any `V` function to change it's validation behavior
-in some ways.
+Modifiers can be added to the end of many `V` functions to change or restrict their
+behavior.
 
-To use a modifier, simply chain it off any `V` function:
+To use a modifier, simply chain it off the appropriate `V` function:
 
 ```javascript
 
@@ -170,48 +165,76 @@ V.shape({
 
 ```
 
-Currently built in modifiers:
+#### Modifiers:
 
-```javascript
+##### Global Modifiers:
 
-// The optional modifier only matters if the validator is used as the field of a shape:
+ - `optional`
+   This only takes effect if used on a function that is part of a `V.shape` field.
+   It will cause the `V.shape` validator to return true even if the key this is
+   attached to is absent.
 
-V.number.optional(5) // true, but the modifier has no effect in this context.
+ - `custom(func)`
+   Requires you to pass in a function of the type `(v: unknown) => boolean`, and will
+   cause the validator it is attached to to fail if the function returns false when
+   given the input value.
 
-// However, it will allow missing keys through if used on a shape field validator:
+##### Number Modifiers:
 
-let fooValidator = V.shape({
-	foo: V.string.optional,
-});
+These modifiers are only accessable on a `V.number` validator.
 
-fooValidator({})                // true, since the 'foo' key is missing but optional.
-fooValidator({foo: ""})         // true, 'foo' key is present and has correct type.
-fooValidator({foo: 10})         // false, 'foo' key is present with wrong type.
-fooValidator({foo: undefined})  // false, 'foo' key is present with wrong type.
-fooValidator({foo: "", bar: 0}) // true, 'foo' key has right type, extra properties are okay by default.
+ - `integer`
+   This will cause the validator to fail if the value is not an integer.
+   For example, `10` will pass, but `10.5` will not.
 
-// The noextra modifier only matters when chained on a V.shape validator, and
-// it will make the validator fail if additional keys are present in the value:
+ - `max(maximum)`
+   Ensures that the number is less than or equal to the maximum.
 
-let barValidator = V.shape({
-	bar: V.string.optional
-}).noextra;
+ - `lt(maximum)`
+   Ensures that the number is strictly less than the maximum
 
-barValidator({})                 // true
-barValidator({bar: ""})          // true
-barValidator({bar: 10})          // false
-barValidator({bar: "", foo: ""}) // false, additional keys not allowed, key 'foo' not specified in shape.
+ - `min(minimum)`
+   Ensures that the number is greater than or equal to the minimum.
 
-```
+ - `gt(minimum)`
+   Ensures that the number is strictly greater than the minimum.
 
-The built in modifiers are idempotent, which means you may add the modifier multiple
-times and there will be no ill-effect. So
+ - `interval(range)`
+   Ensures the number is within the given interval. The argument is a string
+   representing an interval in mathematical notation. Eg: `"[0, 1)"` would be
+   a range from 0 (inclusive) to 1 (exclusive). An unbounded range can be given
+   by using `Infinity`, so `"(-Infinity, 0)"` would describe a strictly negative
+   number.
 
-`V.shape({foo: V.string.optional.optional}).noextra.noextra`
+##### String Modifiers:
 
-is just the same as
+These modifiers are only accessable on a `V.string` validator.
 
-`V.shape({foo: V.string.optional}).noextra`
+ - `regex(rgx)`
+   This will ensure the string passes the given regex, using `rgx.test`.
+
+ - `email`
+   This will ensure the string is a properly formatted email address. This uses
+   a regular expression found at emailregex.com
+
+ - `alphanumeric`
+   This will ensure the string is composed only of characters in a-z or 0-9. It is
+   case sensitive, so capital letters will not pass.
+
+ - `base64`
+   This will ensure the string is valid base64 encoded data. This is NOT url safe base64
+   so the `-` and `_` are not allowed. This also validates padding, so the string must
+   include the proper padding at the end.
+
+ - `hex`
+   This will ensure the string is valid hex encoded data. Case sensitive, so only lowercase
+   letters are allowed.
+
+##### Shape Modifiers
+
+ - `noextra`
+   This will cause the shape validator to return false if keys exist in the input
+   that are not present in the shape spec.
 
 # API Reference
 
@@ -229,14 +252,48 @@ With arguments:
  - `V.arrayOf(validator)` Returns true if the input is an array and all members of the array are of the specified type.
  - `V.oneOf(...validators)` Returns true if the input is one of the specified types.
  - `V.allOf(...validators)` Returns true if the input is all of the specified types.
- - `V.custom(function)` Returns true if the function returns a truthy value when given the input.
  - `V.shape(object)` Returns true if the input is an object that matches the types of all specified keys.
 
 ### Validator modifiers:
 
- - `optional`
+ - modifier[(arguments)]: Applies to
+   - Effects
+
+ - `optional`: Global
    - Only takes effect when used on a validator that is a field inside a `V.shape` schema.
    - Allows the key it is attached to to be ommited, and the `V.shape` validator will still return true.
- - `noextra`
+ - `custom(func)`: Global
+   - Causes validator to fail if the given function returns falsy when passed the input value.
+
+ - `integer`: Number
+   - Ensures value has no fractional part.
+ - `max(num)`: Number
+   - Ensures value is less than or equal to the given number.
+ - `lt(num)`: Number
+   - Ensures value is strictly less than the given number.
+ - `min(num)`: Number
+   - Ensures value is greater than or equal to the given number.
+ - `gt(num)`: Number
+   - Ensures value is strictly greater than the given number.
+ - `interval(range)`: Number
+   - Ensures value is within the specified interval (uses mathematical interval notation).
+
+ - `regex(rgx)`: String
+   - Ensures value passes given regex.
+ - `email`: String
+   - Ensures value is an email address.
+ - `alphanumeric`: String
+   - Ensures value is composed of only alphanumeric characters (lowercase only)
+ - `base64`: String
+   - Ensures value uses valid standard base64 encoding.
+ - `hex`: String
+   - Ensures value uses valid hex encoding.
+
+ - `noextra`: Shape
    - Only takes effect when used on a `V.shape` validator.
    - Disallows extra keys in the input. Keys in the input that are not specified in the schema will cause the validator to return false.
+
+ - `minLength(num)`: String, Array
+   - Ensures the value has a length greater than or equal to the given number.
+ - `maxLength(num)`: String, Array
+   - Ensures the value has a length less than or equal to the given number.

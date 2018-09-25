@@ -3,13 +3,14 @@
 // Helper Functions \\
 //------------------\\
 
-function prox<T>(f: (v: unknown) => v is T, mods: {}): ModProxy<T> {
-	const me: (v: unknown) => v is T = new Proxy(Object.assign(f, {f: [] as any[]}), {
+function prox<T, M extends {}>(f: (v: unknown) => v is T, mods: M): ModProxy<T> & SelfMap<DeMod<T, M>> {
+	const me: (v: unknown) => v is T = new Proxy(f as ModProxy<any>, {
 		get: function (o, p) {
 			return p in mods ? mods[p](me) : o[p];
 		},
 		apply: function(t, _, args) {
-			return t(args[0]) && t.f.every(f => f(args[0]));
+			t.e = [];
+			return t.f.every(f => f(args[0]));
 		},
 	});
 
@@ -17,170 +18,144 @@ function prox<T>(f: (v: unknown) => v is T, mods: {}): ModProxy<T> {
 	return me;
 }
 
-function mod(f: (..._: any[]) => (v: any) => boolean): (o: ModProxy<any>) => (..._: any[]) => ModProxy<any> {
-	return o => (...args: any[]) => (o.f.push(f(...args)), o);
+function vErr(o: ModProxy<any>, msg: string): false {
+	o.e.push(new Error(msg));
+	return false;
 }
 
-//--------------\\
-// The V Object \\
-//--------------\\
+//---------\\
+// Globals \\
+//---------\\
 
-const V = {
-
-	//--- Primitives + Literals ---\\
-
-	get boolean() {
-		return prox(function(v: unknown): v is boolean { return typeof v === "boolean"; }, Object.assign({},
-			GLOBAL_MODS,
-			// No boolean mods, they're so simple that I can't think of anything useful for em.
-		));
-	},
-	get number() {
-		return prox(function(v: unknown): v is number { return typeof v === "number"; }, Object.assign({},
-			GLOBAL_MODS,
-			NUMBER_MODS
-		));
-	},
-	get string() {
-		return prox(function(v: unknown): v is string { return typeof v === "string"; }, Object.assign({},
-			GLOBAL_MODS,
-			STRING_MODS,
-		));
-	},
-
-	literal<T extends Primitive>(lit: T) {
-		return prox(function(v: unknown): v is T { return v === lit; }, Object.assign({},
-			GLOBAL_MODS,
-		));
-	},
-
-	//--- Objects + Arrays ---\\
-
-	arrayOf<T>(type: ModProxy<T>) {
-		return prox(function(v: unknown): v is T[] { return v instanceof Array && v.every(e => type(e)); }, Object.assign({},
-			GLOBAL_MODS,
-			ARRAY_MODS,
-		));
-	},
-
-	mapOf<T>(type: ModProxy<T>) {
-		return prox(function(v: unknown): v is StringMap<T> { return v && typeof v === "object" && Object.values(v).every(e => type(e)); }, Object.assign({},
-			GLOBAL_MODS,
-		));
-	},
-
-	shape<T extends {}>(shape_spec: {[K in keyof T]: ModProxy<T[K]> }) {
-		// This is a more complex one so I will define the function separately (imagine this on one line, lol)...
-		function isShape(v: unknown): v is T {
-			if (!v || typeof v !== "object") return false;
-			return Object.entries(shape_spec).every(([k, mpx]: any) => k in (v as any) ? mpx((v as any)[k]) : mpx["_optional"]);
-		}
-
-		return prox(isShape, Object.assign({},
-			GLOBAL_MODS,
-			createShapeMods(shape_spec),
-		));
-	},
-
-	//--- Utilities ---\\
-
-	// Defined elsewhere due to necessity of overload signatures...
-	oneOf: oneOf,
-	allOf: allOf,
-}
-
-//--- Utilities ---\\
-
-// These functions must be defined out here since I need to attach overloads to them.
-// The overloads go up to five arugments but if use-cases for more are common it's trivial
-// to add more up to whatever number of arguments (but we gotta stop somewhere...)
-//
-// However, we cannot currently give a good type for an arbitrary number of arguments.
-// Typescript: variadic types when?! Typescript plz!
-// See: https://github.com/Microsoft/TypeScript/issues/5453
-
-function oneOf<T1>(type1: ModProxy<T1>): ModProxy<T1>;
-function oneOf<T1, T2>(type1: ModProxy<T1>, type2: ModProxy<T2>): ModProxy<T1 | T2>;
-function oneOf<T1, T2, T3>(type1: ModProxy<T1>, type2: ModProxy<T2>, type3: ModProxy<T3>): ModProxy<T1 | T2 | T3>
-function oneOf<T1, T2, T3, T4>(type1: ModProxy<T1>, type2: ModProxy<T2>, type3: ModProxy<T3>, type4: ModProxy<T4>): ModProxy<T1 | T2 | T3 | T4>;
-function oneOf<T1, T2, T3, T4, T5>(type1: ModProxy<T1>, type2: ModProxy<T2>, type3: ModProxy<T3>, type4: ModProxy<T4>, type5: ModProxy<T5>): ModProxy<T1 | T2 | T3 | T4 | T5>;
-function oneOf(...args: ModProxy<any>[]): ModProxy<any>;
-function oneOf(...args: ModProxy<any>[]): ModProxy<any> {
-	return prox(function (v): v is any { return args.some(mpx => mpx(v)) }, Object.assign({},
-		GLOBAL_MODS,
-	));
-}
-
-function allOf<T1>(type1: ModProxy<T1>): ModProxy<T1>;
-function allOf<T1, T2>(type1: ModProxy<T1>, type2: ModProxy<T2>): ModProxy<T1 & T2>;
-function allOf<T1, T2, T3>(type1: ModProxy<T1>, type2: ModProxy<T2>, type3: ModProxy<T3>): ModProxy<T1 & T2 & T3>
-function allOf<T1, T2, T3, T4>(type1: ModProxy<T1>, type2: ModProxy<T2>, type3: ModProxy<T3>, type4: ModProxy<T4>): ModProxy<T1 & T2 & T3 & T4>;
-function allOf<T1, T2, T3, T4, T5>(type1: ModProxy<T1>, type2: ModProxy<T2>, type3: ModProxy<T3>, type4: ModProxy<T4>, type5: ModProxy<T5>): ModProxy<T1 & T2 & T3 & T4 & T5>;
-function allOf(...args: ModProxy<any>[]): ModProxy<any>;
-function allOf(...args: ModProxy<any>[]): ModProxy<any> {
-	return prox(function (v): v is any { return args.every(mpx => mpx(v)) }, Object.assign({},
-		GLOBAL_MODS,
-	));
-}
-
-const GLOBAL_MODS: ModSet<any> = {
-	optional: o => (o["_optional"] = true, o),
-
-	// Custom validator:
-	custom: mod((fn: (v: unknown) => boolean) => v => fn(v)),
+const GLOBAL_MODS = {
+	optional: (o: ModProxy<any>) => (o["_optional"] = true, o),
+	custom: (o: ModProxy<any>) => (fn: (v: any) => boolean) => (o.f.push(fn), o),
 };
 
 //---------\\
 // Numbers \\
 //---------\\
 
-const NUMBER_MODS: ModSet<number> = {
-	// Is specific number type:
-	integer(o) { o.f.push(v => Number.isInteger(v)); return o; },
+const NUMBER_MODS = {
+	integer: (o: ModProxy<number>) => {
+		const check = (v: number) => Number.isInteger(v) || vErr(o, "Number is not an integer.");
+		return (o.f.push(check), o);
+	},
 
-	// Comparison mods:
-	max: mod((max: number) => v => v <= max),
-	lt: mod((max: number) => v => v < max),
-	min: mod((min: number) => v => v >= min),
-	gt: mod((min: number) => v => v > min),
+	max: (o: ModProxy<number>) => (max: number) => {
+		const check = (v: number) => v <= max || vErr(o, "Number is larger than maximum.");
+		return (o.f.push(check), o);
+	},
+
+	min: (o: ModProxy<number>) => (min: number) => {
+		const check = (v: number) => v >= min || vErr(o, "Number is smaller than minimum.");
+		return (o.f.push(check), o);
+	},
+
+	lt: (o: ModProxy<number>) => (max: number) => {
+		const check = (v: number) => v < max || vErr(o, "Number is not less than the maximum.");
+		return (o.f.push(check), o);
+	},
+
+	gt: (o: ModProxy<number>) => (min: number) => {
+		const check = (v: number) => v > min || vErr(o, "Number is not greater than the minimum");
+		return (o.f.push(check), o);
+	},
 
 	// As a mathematical interval (eg, "[0, 1)" style notation):
-	interval: mod((range: string) => {
-		const range_parse = range.match(/^([[(])\s*(.*?),\s*(.*?)\s*([\])])$/);
-		if (!range_parse) throw new Error("Invalid range expression.");
+	interval: (o: ModProxy<number>) => (range: string) => {
+		const rangeCheck = parseRange(range);
+		const check = (v: number) => rangeCheck(v) || vErr(o, `Number is not within specified range of ${range}.`);
+		return (o.f.push(check), o);
+	}
+}
 
-		const range_vals = [+range_parse[2], +range_parse[3]];
-		if (range_vals.some(n => Number.isNaN(n))) throw new Error("Invalid range expression.");
-		if (range_vals[0] > range_vals[1]) throw new Error("Invalid range expression (range is empty).");
+//--- Number Helpers ---\\
 
-		return v => (range_parse[1] === "(" ? range_vals[0] < v : range_vals[0] <= v) &&
-		            (range_parse[4] === ")" ? v < range_vals[1] : v <= range_vals[1]);
-	}),
+function parseRange(range: string): (v: number) => boolean {
+	const range_parse = range.match(/^([[(])\s*(.*?),\s*(.*?)\s*([\])])$/);
+	if (!range_parse) throw new Error("Invalid range expression.");
+
+	const range_vals = [+range_parse[2], +range_parse[3]];
+	if (range_vals.some(n => Number.isNaN(n))) throw new Error("Invalid interval expression.");
+	if (range_vals[0] > range_vals[1]) throw new Error("Invalid interval expression (interval defines the empty set).");
+
+	return v => (range_parse[1] === "(" ? range_vals[0] < v : range_vals[0] <= v) &&
+		        (range_parse[4] === ")" ? v < range_vals[1] : v <= range_vals[1]);
 }
 
 //---------\\
 // Strings \\
 //---------\\
 
-const STRING_MODS: ModSet<string> = {
-	regex: mod((rgx: RegExp) => v => rgx.test(v)),
+const STRING_MODS = {
+	regex: (o: ModProxy<string>) => (rgx: RegExp) => {
+		const check = (v: string) => rgx.test(v) || vErr(o, "String did not pass the specified RegExp.");
+		return (o.f.push(check), o);
+	},
 
-	email: o => (o.f.push(v => /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/.test(v)), o),
-	alphanumeric: o => (o.f.push(v => /^[a-zA-Z0-9]*$/.test(v)), o),
-	base64: o => (o.f.push(v => /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(v)), o),
-	hex: o => (o.f.push(v => /^([abcdef0-9]{2})*$/.test(v)), o),
+	email: (o: ModProxy<string>) => {
+		const check = (v: string) => email_regex.test(v) || vErr(o, "String did not appear to be a valid email.");
+		return (o.f.push(check), o);
+	},
 
-	minLength: mod((len: number) => v => v.length >= len),
-	maxLength: mod((len: number) => v => v.length <= len),
+	alphanumeric: (o: ModProxy<string>) => {
+		const check = (v: string) => alphanum_regex.test(v) || vErr(o, "String did not appear to be alphanumeric.");
+		return (o.f.push(check), o);
+	},
+
+	base64: (o: ModProxy<string>) => {
+		const check = (v: string) => base64_regex.test(v) || vErr(o, "String did not appear to be valid base64.");
+		return (o.f.push(check), o);
+	},
+
+	hex: (o: ModProxy<string>) => {
+		const check = (v: string) => hex_regex.test(v) || vErr(o, "String did not appear to be valid hex.");
+		return (o.f.push(check), o);
+	},
+
+	minLen: (o: ModProxy<string>) => (min: number) => {
+		const check = (v: string) => v.length >= min || vErr(o, "String length is smaller than the minimum.");
+		return (o.f.push(check), o);
+	},
+
+	maxLen: (o: ModProxy<string>) => (max: number) => {
+		const check = (v: string) => v.length <= max || vErr(o, "String length is larger than the maximum.");
+		return (o.f.push(check), o);
+	},
+
+	isLen: (o: ModProxy<string>) => (len: number) => {
+		const check = (v: string) => v.length === len || vErr(o, "String length is not equal to the specified length.");
+		return (o.f.push(check), o);
+	},
 };
+
+//--- String Helpers ---\\
+
+const email_regex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+const alphanum_regex = /^[a-zA-Z0-9]*$/i;
+const base64_regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const hex_regex = /^([abcdef0-9]{2})*$/i;
 
 //--------\\
 // Arrays \\
 //--------\\
 
-const ARRAY_MODS: ModSet<any[]> = {
-	minLength: mod((len: number) => v => v.length >= len),
-	maxLength: mod((len: number) => v => v.length <= len),
+const ARRAY_MODS = {
+	minLen: <T>(o: ModProxy<T[]>) => (min: number) => {
+		const check = (v: T[]) => v.length >= min || vErr(o, "Array length is smaller than the minimum.");
+		return (o.f.push(check), o);
+	},
+
+	maxLen: <T>(o: ModProxy<T[]>) => (max: number) => {
+		const check = (v: T[]) => v.length <= max || vErr(o, "Array length is larger than the maximum.");
+		return (o.f.push(check), o);
+	},
+
+	isLen: <T>(o: ModProxy<T[]>) => (len: number) => {
+		const check = (v: T[]) => v.length === len || vErr(o, "Array length is not equal to the specified length.");
+		return (o.f.push(check), o);
+	},
 };
 
 //--------\\
@@ -191,11 +166,92 @@ const ARRAY_MODS: ModSet<any[]> = {
 // a predefined set of mods. We have to construct them dynamically so that each one
 // can respond to the shape spec specifically.
 
-function createShapeMods(shape_spec: {[k: string]: ModProxy<any>}): ModSet<any> {
-	return {
-		noextra(o) { o.f.push(v => Object.keys(v).every(k => k in shape_spec)); return o; },
-	};
+const createShapeMods = (shape_spec: {[k: string]: ModProxy<any>}) => ({
+	noextra: <T>(o: ModProxy<T>) => {
+		const check = (v: T) => Object.keys(v).every(k => k in shape_spec) || vErr(o, "Additional keys found in an object which disallows unknown keys.");
+		return (o.f.push(check), o);
+	},
+});
+
+//--------------\\
+// The V Object \\
+//--------------\\
+
+// TODO: The ones with arguments are throwing...
+// Sadly...
+
+const VBase = {
+	boolean: Object.assign((o: ModProxy<any>) => {
+		const check = (v: unknown) => typeof v === "boolean" || vErr(o, "Value is not a boolean.");
+		return (o.f.push(check), o) as ModProxy<boolean> & SelfMap<DeMod<boolean, typeof GLOBAL_MODS>>;
+	}, {m: {...GLOBAL_MODS}}),
+
+	string: Object.assign((o: ModProxy<any>) => {
+		const check = (v: unknown) => typeof v === "string" || vErr(o, "Value is not a string.");
+		return (o.f.push(check), o) as ModProxy<string> & SelfMap<DeMod<string, typeof GLOBAL_MODS & typeof STRING_MODS>>;
+	}, {m: {...GLOBAL_MODS, ...STRING_MODS}}),
+
+	number: Object.assign((o: ModProxy<any>) => {
+		const check = (v: unknown) => typeof v === "number" || vErr(o, "Value is not a number.");
+		return (o.f.push(check), o) as ModProxy<number> & SelfMap<DeMod<number, typeof GLOBAL_MODS & typeof NUMBER_MODS>>;
+	}, {m: {...GLOBAL_MODS, ...NUMBER_MODS}}),
+
+	literal: (o: ModProxy<any>) => Object.assign(<T extends Primitive>(lit: T) => {
+		const check = (v: unknown) => v === lit || vErr(o, "Value was not the specified literal.");
+		return (o.f.push(check), o) as ModProxy<T> & SelfMap<DeMod<T, typeof GLOBAL_MODS>>;
+	}, {m: {...GLOBAL_MODS}}),
+
+	arrayOf: (o: ModProxy<any>) => Object.assign(<T>(type: ModProxy<T>) => {
+		const check = (v: unknown) => (v instanceof Array || vErr(o, "Value is not an array.")) && ((v as T[]).every(e => type(e)) || vErr(o, "Array is not of correct type."));
+		return (o.f.push(check), o) as ModProxy<T[]> & SelfMap<DeMod<T[], typeof GLOBAL_MODS & typeof ARRAY_MODS>>;
+	}, {m: {...GLOBAL_MODS, ...ARRAY_MODS}}),
+
+	mapOf: (o: ModProxy<any>) => Object.assign(<T>(type: ModProxy<T>) => {
+		const check = (v: unknown) => (v && typeof v === "object" || vErr(o, "Value is not an object.")) && (Object.values(v as any).every(e => type(e)) || vErr(o, "Object has (at least) one value of incorrect type."));
+		return (o.f.push(check), o) as ModProxy<{[K: string]: T}> & SelfMap<DeMod<T, typeof GLOBAL_MODS>>
+	}, {m: {...GLOBAL_MODS}}),
+
+	shape: (o: ModProxy<any>) => Object.assign(<T>(shape: {[K in keyof T]: ModProxy<T[K]>}) => {
+		const check = (v: unknown) => v && typeof v === "object" && Object.entries(shape).every(([k, mp]: any) => k in (v as any) ? mp((v as any)[k]) : mp["_optional"]) || vErr(o, "Value was not of correct shape.");
+		return (o.f.push(check), o["m"] = {...o["m"], ...createShapeMods(shape)}, o) as ModProxy<T> & SelfMap<DeMod<T, typeof GLOBAL_MODS & ReturnType<typeof createShapeMods>>>
+	}, {m: {...GLOBAL_MODS}}), // fuck..., No access to shape spec at this phase...
+
+	// Forgive me father, for I have sinned. These function signatures are demonic.
+
+	oneOf: (o: ModProxy<any>) => Object.assign(<T1, T2 = never, T3 = never, T4 = never, T5 = never>(...types: [ModProxy<T1>, ModProxy<T2>?, ModProxy<T3>?, ModProxy<T4>?, ModProxy<T5>?]) => {
+		const check = (v: unknown) => types.some(fn => fn!(v)) || vErr(o, "Value was none of the specified types.");
+		return (o.f.push(check), o) as ModProxy<T1 | T2 | T3 | T4 | T5> & SelfMap<DeMod<T1 | T2 | T3 | T4 | T5, typeof GLOBAL_MODS>>;
+	}, {m: {...GLOBAL_MODS}}),
+
+	allOf: (o: ModProxy<any>) => Object.assign(<T1, T2 = unknown, T3 = unknown, T4 = unknown, T5 = unknown>(...types: [ModProxy<T1>, ModProxy<T2>?, ModProxy<T3>?, ModProxy<T4>?, ModProxy<T5>?]) => {
+		const check = (v: unknown) => types.every(fn => fn!(v)) || vErr(o, "Value was not (at least) one of the specified types.");
+		return (o.f.push(check), o) as ModProxy<T1 & T2 & T3 & T4 & T5> & SelfMap<DeMod<T1 & T2 & T3 & T4 & T5, typeof GLOBAL_MODS>>
+	}, {m: {...GLOBAL_MODS}}),
+
+	// And finally, the custom validator, for your convenience.
+
+	custom: (o: ModProxy<any>) => Object.assign(<T = any>(fn: (v: unknown) => v is T) => {
+		const check = (v: unknown) => fn(v) || vErr(o, "Value failed a custom type check.");
+		return (o.f.push(check), o) as ModProxy<T> & SelfMap<DeMod<T, typeof GLOBAL_MODS>>;
+	}, {m: {...GLOBAL_MODS}}),
 }
+
+const V: {[K in keyof typeof VBase]: ReturnType<typeof VBase[K]>} = new Proxy(VBase as any, {
+	get: function(vobj, prop) {
+		if (!(prop in vobj)) return undefined;
+
+		const o = Object.assign(() => {}, {f: [], e: []});
+		const vdr = vobj[prop](o);
+
+		return "m" in vobj[prop]
+			? prox(vdr, vobj[prop].m)
+			: (...args: any[]) => prox(vdr(...args), vdr["m"]);
+	},
+	set: function(vobj, prop, val) {
+		if (prop !== "m") return false;
+		return (vobj[prop] = val, true);
+	},
+});
 
 //-------\\
 // Types \\
@@ -204,16 +260,33 @@ function createShapeMods(shape_spec: {[k: string]: ModProxy<any>}): ModSet<any> 
 type ModProxy<T> = {
 	(v: unknown): v is T;
 	f: ((v: T) => boolean)[];
+	e: Error[];
 }
 
 type ModSet<T> = {
 	[mod_name: string]:
 		((o: ModProxy<T>) => ModProxy<T>) |
-		((o: ModProxy<T>) => () => ModProxy<T>);
+		((o: ModProxy<T>) => (...args: any[]) => ModProxy<T>);
 }
 
+type DeMod<S, T extends ModSet<S>> = {
+	[K in keyof T]: T[K] extends (o: ModProxy<any>) => ModProxy<S>
+		? ModProxy<S>
+		: T[K] extends ((o: ModProxy<any>) => (...args: infer A) => ModProxy<S>)
+		? (...args: A) => ModProxy<S>
+		: never;
+}
+
+type SelfMap<T> = {
+	[K in keyof T]: T[K] extends ModProxy<any>
+		? T[K] & SelfMap<T>
+		: T[K] extends (...args: infer A) => ModProxy<infer R>
+		? (...args: A) => ModProxy<R> & SelfMap<T>
+		: never;
+}
+
+// This is required to force the 'literal' validator to infer literal types.
 type Primitive = undefined | null | string | number | boolean | {};
-type StringMap<T> = {[k: string]: T};
 
 //---------\\
 // Exports \\

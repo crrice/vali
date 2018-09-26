@@ -315,12 +315,3 @@ type OnlyReqKeys<T extends {[K: string]: OModProxy<any>|RModProxy<any>}> = {
 //---------\\
 
 export { V };
-
-const val = V.shape({foo: V.string.optional, bar: V.number});
-
-const thing: unknown = "";
-if (val(thing)) {
-	thing.foo
-	thing.bar
-}
-

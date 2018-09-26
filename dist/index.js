@@ -22,23 +22,23 @@ const GLOBAL_MODS = {
 };
 const NUMBER_MODS = {
     integer: (o) => {
-        const check = (v) => Number.isInteger(v) || vErr(o, "Number is not an integer.");
+        const check = (v) => Number.isInteger(v) || vErr(o, `Number is not an integer.`);
         return (o.f.push(check), o);
     },
     max: (o) => (max) => {
-        const check = (v) => v <= max || vErr(o, "Number is larger than maximum.");
+        const check = (v) => v <= max || vErr(o, `Number is larger than maximum of ${max}.`);
         return (o.f.push(check), o);
     },
     min: (o) => (min) => {
-        const check = (v) => v >= min || vErr(o, "Number is smaller than minimum.");
+        const check = (v) => v >= min || vErr(o, `Number is smaller than minimum of ${min}`);
         return (o.f.push(check), o);
     },
     lt: (o) => (max) => {
-        const check = (v) => v < max || vErr(o, "Number is not less than the maximum.");
+        const check = (v) => v < max || vErr(o, `Number is not less than the upper limit of ${max}.`);
         return (o.f.push(check), o);
     },
     gt: (o) => (min) => {
-        const check = (v) => v > min || vErr(o, "Number is not greater than the minimum");
+        const check = (v) => v > min || vErr(o, `Number is not greater than the lower limit of ${min}.`);
         return (o.f.push(check), o);
     },
     interval: (o) => (range) => {
@@ -99,21 +99,21 @@ const base64_regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{
 const hex_regex = /^([abcdef0-9]{2})*$/i;
 const ARRAY_MODS = {
     minLen: (o) => (min) => {
-        const check = (v) => v.length >= min || vErr(o, "Array length is smaller than the minimum.");
+        const check = (v) => v.length >= min || vErr(o, `Array length is smaller than the minimum of ${min}.`);
         return (o.f.push(check), o);
     },
     maxLen: (o) => (max) => {
-        const check = (v) => v.length <= max || vErr(o, "Array length is larger than the maximum.");
+        const check = (v) => v.length <= max || vErr(o, `Array length is larger than the maximum of ${max}.`);
         return (o.f.push(check), o);
     },
     isLen: (o) => (len) => {
-        const check = (v) => v.length === len || vErr(o, "Array length is not equal to the specified length.");
+        const check = (v) => v.length === len || vErr(o, `Array length is not equal to the specified length of ${len}.`);
         return (o.f.push(check), o);
     },
 };
 const createShapeMods = (shape_spec) => ({
     noextra: (o) => {
-        const check = (v) => Object.keys(v).every(k => k in shape_spec) || vErr(o, "Additional keys found in an object which disallows unknown keys.");
+        const check = (v) => Object.keys(v).every(k => k in shape_spec || vErr(o, `Object does not allow additional keys, found unknown key: ${k}.`));
         return (o.f.push(check), o);
     },
 });
@@ -131,11 +131,11 @@ const VBase = {
         return (o.f.push(check), o);
     }, { m: Object.assign({}, GLOBAL_MODS, NUMBER_MODS) }),
     literal: (o) => Object.assign((lit) => {
-        const check = (v) => v === lit || vErr(o, "Value was not the specified literal.");
+        const check = (v) => v === lit || vErr(o, `Value was not the specified literal: ${lit}.`);
         return (o.f.push(check), o);
     }, { m: Object.assign({}, GLOBAL_MODS) }),
     arrayOf: (o) => Object.assign((type) => {
-        const check = (v) => (v instanceof Array || vErr(o, "Value is not an array.")) && (v.every(e => type(e)) || vErr(o, "Array is not of correct type."));
+        const check = (v) => (v instanceof Array || vErr(o, "Value is not an array.")) && (v.every(e => type(e)) || vErr(o, "Array items are not of correct type."));
         return (o.f.push(check), o);
     }, { m: Object.assign({}, GLOBAL_MODS, ARRAY_MODS) }),
     mapOf: (o) => Object.assign((type) => {
@@ -143,7 +143,7 @@ const VBase = {
         return (o.f.push(check), o);
     }, { m: Object.assign({}, GLOBAL_MODS) }),
     shape: (o) => Object.assign((shape) => {
-        const check = (v) => v && typeof v === "object" && Object.entries(shape).every(([k, mp]) => k in v ? mp(v[k]) : mp["_optional"]) || vErr(o, "Value was not of correct shape.");
+        const check = (v) => v && typeof v === "object" && Object.entries(shape).every(([k, mp]) => (k in v ? mp(v[k]) : mp["_optional"]) || vErr(o, `Value was not of correct shape, key "${k}" is ${k in v ? "invalid" : "missing"}`));
         return (o.f.push(check), o["m"] = Object.assign({}, o["m"], createShapeMods(shape)), o);
     }, { m: Object.assign({}, GLOBAL_MODS) }),
     oneOf: (o) => Object.assign((...types) => {
@@ -176,3 +176,9 @@ const V = new Proxy(VBase, {
     },
 });
 exports.V = V;
+const val = V.shape({ foo: V.string.optional, bar: V.number });
+const thing = "";
+if (val(thing)) {
+    thing.foo;
+    thing.bar;
+}

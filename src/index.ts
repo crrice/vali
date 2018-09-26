@@ -254,8 +254,6 @@ const V: {[K in keyof typeof VBase]: ReturnType<typeof VBase[K]>} = new Proxy(VB
 // Types \\
 //-------\\
 
-type Omit<T, K extends string|number|Symbol> = Pick<T, Exclude<keyof T, K>>;
-
 type OModProxy<T> = ModProxy<T> & {_optional: true};
 type RModProxy<T> = ModProxy<T> & {_optional?: never};
 

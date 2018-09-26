@@ -230,6 +230,28 @@ These modifiers are only accessable on a `V.string` validator.
    This will ensure the string is valid hex encoded data. Case sensitive, so only lowercase
    letters are allowed.
 
+ - `minLen(minimum)`
+   This will ensure the string is the specified length or longer.
+
+ - `maxLen(maximum)`
+   This will ensure the string is the specified length or shorter.
+
+ - `isLen(length)`
+   This will ensure the string is exactly the specified length.
+
+##### Array Modifiers
+
+These modifiers are only accessable on a `V.arrayOf` validator.
+
+ - `minLen`
+   This will ensure the array is the specified length or longer.
+
+ - `maxLen`
+   This will ensure the array is the specified length or shorter.
+
+ - `isLen`
+   This will ensure the array is exactly the specified length.
+
 ##### Shape Modifiers
 
  - `noextra`
@@ -298,6 +320,21 @@ With arguments:
    - Ensures value uses valid standard base64 encoding.
  - `hex`: String
    - Ensures value uses valid hex encoding.
+ - `minLen(minimum)`
+   - Ensures value has at least the specified length.
+ - `maxLen(maximum)`
+   - Ensures value has at most the specified length.
+ - `isLen(length)`
+   - Ensures value has exactly the specified length.
+
+##### Array:
+
+ - `minLen(minimum)`
+   - Ensures value has at least the specified length.
+ - `maxLen(maximum)`
+   - Ensures value has at most the specified length.
+ - `isLen(length)`
+   - Ensures value has exactly the specified length.
 
 ##### Shape:
 
@@ -305,9 +342,3 @@ With arguments:
    - Only takes effect when used on a `V.shape` validator.
    - Disallows extra keys in the input. Keys in the input that are not specified in the schema will cause the validator to return false.
 
-##### Mixed:
-
- - `minLength(num)`: String, Array
-   - Ensures the value has a length greater than or equal to the given number.
- - `maxLength(num)`: String, Array
-   - Ensures the value has a length less than or equal to the given number.

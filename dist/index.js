@@ -176,9 +176,3 @@ const V = new Proxy(VBase, {
     },
 });
 exports.V = V;
-const val = V.shape({ foo: V.string.optional, bar: V.number });
-const thing = "";
-if (val(thing)) {
-    thing.foo;
-    thing.bar;
-}

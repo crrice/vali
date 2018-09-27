@@ -1,7 +1,15 @@
 {
   "name": "@crrice/vali",
-  "version": "2.0.0",
-  "description": "A simple object validation library for javascript.",
+  "version": "2.0.1",
+  "description": "A simple object validation library for Javascript, with kickass TypeScript integration.",
+  "keywords": [
+    "vali",
+    "validate",
+    "validation",
+    "object",
+    "typescript",
+    "type guard"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": {

@@ -142,10 +142,13 @@ const VBase = {
         const check = (v) => (v && typeof v === "object" || vErr(o, "Value is not an object.")) && (Object.values(v).every(e => type(e)) || vErr(o, "Object has (at least) one value of incorrect type."));
         return (o.f.push(check), o);
     }, { m: Object.assign({}, GLOBAL_MODS) }),
-    shape: (o) => Object.assign((shape) => {
-        const check = (v) => v && typeof v === "object" && Object.entries(shape).every(([k, mp]) => (k in v ? mp(v[k]) : mp["_optional"]) || vErr(o, `Value was not of correct shape, key "${k}" is ${k in v ? "invalid" : "missing"}`));
-        return (o.f.push(check), o["m"] = Object.assign({}, o["m"], createShapeMods(shape)), o);
-    }, { m: Object.assign({}, GLOBAL_MODS) }),
+    shape: (o) => Object.assign((() => {
+        const me = (shape) => {
+            const check = (v) => v && typeof v === "object" && Object.entries(shape).every(([k, mp]) => (k in v ? mp(v[k]) : mp["_optional"]) || vErr(o, `Value was not of correct shape, key "${k}" is ${k in v ? "invalid" : "missing"}`));
+            return (o.f.push(check), me["m"] = Object.assign({}, me["m"], createShapeMods(shape)), o);
+        };
+        return me;
+    })(), { m: Object.assign({}, GLOBAL_MODS) }),
     oneOf: (o) => Object.assign((...types) => {
         const check = (v) => types.some(fn => fn(v)) || vErr(o, "Value was none of the specified types.");
         return (o.f.push(check), o);

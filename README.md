@@ -11,6 +11,18 @@ older runtimes.
 
 # Usage
 
+### How to Import:
+
+```javascript
+
+// If you use es6 syntax:
+import { V } from "@crrice/vali";
+
+// If you use require:
+const V = require("@crrice/vali").V;
+
+```
+
 ### Create a validator function:
 
 ```javascript

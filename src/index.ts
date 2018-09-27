@@ -208,10 +208,20 @@ const VBase = {
 		return (o.f.push(check), o) as ModProxy<{[K: string]: T}> & SelfMap<DeMod<T, typeof GLOBAL_MODS>>
 	}, {m: {...GLOBAL_MODS}}),
 
-	shape: (o: ModProxy<any>) => Object.assign(<T extends {[K: string]: OModProxy<any>|RModProxy<any>}>(shape: T) => {
-		const check = (v: unknown) => v && typeof v === "object" && Object.entries(shape).every(([k, mp]: any) => (k in (v as any) ? mp((v as any)[k]) : mp["_optional"]) || vErr(o, `Value was not of correct shape, key "${k}" is ${k in (v as any) ? "invalid" : "missing"}`));
-		return (o.f.push(check), o["m"] = {...o["m"], ...createShapeMods(shape)}, o) as ModProxy<DeOpt<T>> & SelfMap<DeMod<DeOpt<T>, typeof GLOBAL_MODS & ReturnType<typeof createShapeMods>>>
-	}, {m: {...GLOBAL_MODS}}), // fuck..., No access to shape spec at this phase...
+	// shape: (o: ModProxy<any>) => Object.assign(<T extends {[K: string]: OModProxy<any>|RModProxy<any>}>(shape: T) => {
+	// 	const check = (v: unknown) => v && typeof v === "object" && Object.entries(shape).every(([k, mp]: any) => (k in (v as any) ? mp((v as any)[k]) : mp["_optional"]) || vErr(o, `Value was not of correct shape, key "${k}" is ${k in (v as any) ? "invalid" : "missing"}`));
+	// 	return (o.f.push(check), o["m"] = {...o["m"], ...createShapeMods(shape)}, o) as ModProxy<DeOpt<T>> & SelfMap<DeMod<DeOpt<T>, typeof GLOBAL_MODS & ReturnType<typeof createShapeMods>>>
+	// }, {m: {...GLOBAL_MODS}}), // fuck..., No access to shape spec at this phase...
+
+	// Redux with IIFE, this is gross but I gotta get it working somehow...
+	shape: (o: ModProxy<any>) => Object.assign((() => {
+		const me = <T extends {[K: string]: OModProxy<any>|RModProxy<any>}>(shape: T) => {
+			const check = (v: unknown) => v && typeof v === "object" && Object.entries(shape).every(([k, mp]: any) => (k in (v as any) ? mp((v as any)[k]) : mp["_optional"]) || vErr(o, `Value was not of correct shape, key "${k}" is ${k in (v as any) ? "invalid" : "missing"}`));
+			return (o.f.push(check), me["m"] = {...me["m"], ...createShapeMods(shape)}, o) as ModProxy<DeOpt<T>> & SelfMap<DeMod<DeOpt<T>, typeof GLOBAL_MODS & ReturnType<typeof createShapeMods>>>
+		};
+
+		return me;
+	})(), {m: {...GLOBAL_MODS}}), // fuck..., No access to shape spec at this phase...
 
 	// Forgive me father, for I have sinned. These function signatures are demonic.
 

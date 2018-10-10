@@ -1,6 +1,6 @@
 {
   "name": "@crrice/vali",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "A simple object validation library for Javascript, with kickass TypeScript integration.",
   "keywords": [
     "vali",
@@ -17,7 +17,7 @@
     "url": "git+https://github.com/crrice/vali.git"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node ./dist/test.js"
   },
   "author": "Conor Rice",
   "license": "ISC",

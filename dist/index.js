@@ -9,7 +9,7 @@ function assignDescriptors(target, ...sources) {
     }), target);
 }
 function extendGuard(guard, ex, em) {
-    return (v) => guard(v) && (ex(v) || (guard.__e.push(em), false));
+    return (v) => guard(v) && (ex(v) || (guard["__e"].push(em), false));
 }
 function parseRange(range) {
     const range_parse = range.match(/^([[(])\s*(.*?),\s*(.*?)\s*([\])])$/);
@@ -117,56 +117,56 @@ const array_mods = {
 };
 const V = {
     get boolean() {
-        const guard = Object.assign((v) => typeof v === "boolean" || (guard.__e.push("Value is not a boolean"), false), { __e: [] });
+        const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || typeof v === "boolean" || (guard.__e.push("Value is not a boolean"), false), { __e: [], getErrors: () => guard.__e });
         return assignDescriptors(guard, global_mods);
     },
     get number() {
-        const guard = Object.assign((v) => typeof v === "number" || (guard.__e.push("Value is not a number."), false), { __e: [] });
+        const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || typeof v === "number" || (guard.__e.push("Value is not a number."), false), { __e: [], getErrors: () => guard.__e });
         return assignDescriptors(guard, number_mods, global_mods);
     },
     get string() {
-        const guard = Object.assign((v) => typeof v === "string" || (guard.__e.push("Value is not a string."), false), { __e: [] });
+        const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || typeof v === "string" || (guard.__e.push("Value is not a string."), false), { __e: [], getErrors: () => guard.__e });
         return assignDescriptors(guard, string_mods, global_mods);
     },
     get literal() {
         return (lit) => {
-            const guard = Object.assign((v) => v === lit || (guard.__e.push(`Value is not the specified literal ${typeof lit}:${lit}.`), false), { __e: [] });
+            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || v === lit || (guard.__e.push(`Value is not the specified literal ${typeof lit}:${lit}.`), false), { __e: [], getErrors: () => guard.__e });
             return assignDescriptors(guard, global_mods);
         };
     },
     get arrayOf() {
         return (type) => {
-            const guard = Object.assign((v) => (v instanceof Array || (guard.__e.push(`Value is not an array.`), false)) && (v.every(e => type(e) || (guard.__e.push("Array items are not of the correct type.", ...type.__e), false))), { __e: [] });
+            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || (v instanceof Array || (guard.__e.push(`Value is not an array.`), false)) && (v.every(e => type(e) || (guard.__e.push("Array items are not of the correct type.", ...type["__e"]), false))), { __e: [], getErrors: () => guard.__e });
             return assignDescriptors(guard, array_mods, global_mods);
         };
     },
     get mapOf() {
         return (type) => {
-            const guard = Object.assign((v) => (v && typeof v === "object" || (guard.__e.push("Value is not an object"), false)) && (Object.values(v).every(e => type(e) || (guard.__e.push("Map entries are not of the correct type", ...type.__e), false))), { __e: [] });
+            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object"), false)) && (Object.values(v).every(e => type(e) || (guard.__e.push("Map entries are not of the correct type", ...type["__e"]), false))), { __e: [], getErrors: () => guard.__e });
             return assignDescriptors(guard, global_mods);
         };
     },
     get shape() {
         return (spec) => {
-            const guard = Object.assign((v) => (v && typeof v === "object" || (guard.__e.push("Value is not an object."), false)) && Object.entries(spec).every(([k, gd]) => (k in v ? gd(v[k]) : gd["__optional"]) || (guard.__e.push(`Value is not of correct shape. Key ${k} is ${k in v ? "invalid" : "missing"}.`, ...gd.__e), false)) && (guard["__noextra"] ? Object.keys(v).every(k => k in spec || (guard.__e.push(`Value is not of correct shape. Contains unknown key ${k}, and extra keys are not allowed.`), false)) : true), { __e: [] });
+            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object."), false)) && Object.entries(spec).every(([k, gd]) => (k in v ? gd(v[k]) : gd["__optional"]) || (guard.__e.push(`Value is not of correct shape. Key ${k} is ${k in v ? "invalid" : "missing"}.`, ...gd.__e), false)) && (guard["__noextra"] ? Object.keys(v).every(k => k in spec || (guard.__e.push(`Value is not of correct shape. Contains unknown key ${k}, and extra keys are not allowed.`), false)) : true), { __e: [], getErrors: () => guard.__e });
             return assignDescriptors(guard, global_mods);
         };
     },
     get oneOf() {
         return (...types) => {
-            const guard = Object.assign((v) => types.some(type => type(v)) || (guard.__e.push("Value is none of the specified types.", ...[].concat(...types.map(type => type.__e))), false), { __e: [] });
+            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || types.some(type => type(v)) || (guard.__e.push("Value is none of the specified types.", ...[].concat(...types.map(type => type["__e"]))), false), { __e: [], getErrors: () => guard.__e });
             return assignDescriptors(guard, global_mods);
         };
     },
     get allOf() {
         return (...types) => {
-            const guard = Object.assign((v) => types.every(type => type(v) || (guard.__e.push("Value is not one of the specified types.", ...type.__e), false)), { __e: [] });
+            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || types.every(type => type(v) || (guard.__e.push("Value is not one of the specified types.", ...type["__e"]), false)), { __e: [], getErrors: () => guard.__e });
             return assignDescriptors(guard, global_mods);
         };
     },
     get custom() {
         return (type) => {
-            const guard = Object.assign((v) => type(v) || (guard.__e.push("Value failed the custom type check."), false), { __e: [] });
+            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || type(v) || (guard.__e.push("Value failed the custom type check."), false), { __e: [], getErrors: () => guard.__e });
             return assignDescriptors(guard, global_mods);
         };
     },

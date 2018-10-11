@@ -216,7 +216,10 @@ These modifiers are only accessable on a `V.number` validator.
    representing an interval in mathematical notation. Eg: `"[0, 1)"` would be
    a range from 0 (inclusive) to 1 (exclusive). An unbounded range can be given
    by using `Infinity`, so `"(-Infinity, 0)"` would describe a strictly negative
-   number.
+   number. Note that unlike a typical mathematical interval, there is a distinction
+   between an inclusive or exclusive bound on `Infinity`. So, `[0, Infinity]` will
+   allow the actual `Infinity` value to pass, whereas `[0, Infinity)` will allow any
+   positive number (or zero) to pass, but will not allow the special `Infinity` value.
 
 ##### String Modifiers:
 

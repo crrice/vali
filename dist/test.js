@@ -368,6 +368,8 @@ if (false) {
     const f = index_1.V.shape({ foo: index_1.V.oneOf(index_1.V.literal("foo"), index_1.V.literal("bar")), bar: index_1.V.arrayOf(index_1.V.number).isLen(2).optional }).noextra;
     const v = undefined;
     if (f(v)) {
+        v.foo;
+        v.bar;
         const test1 = v;
         const test2 = v.bar && v.bar[0] || 0;
         console.log(test1, test2);

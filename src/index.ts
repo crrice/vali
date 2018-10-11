@@ -1,82 +1,31 @@
 
-//------------------\\
-// Helper Functions \\
-//------------------\\
+//--- Helper Functions ---\\
 
-function prox<T, M extends {}>(f: (v: unknown) => v is T, mods: M): ModProxy<T> & SelfMap<DeMod<T, M>> {
-	const me: (v: unknown) => v is T = new Proxy(f as ModProxy<any>, {
-		get: function (o, p) {
-			return p in mods ? mods[p](me) : o[p];
-		},
-		apply: function(t, _, args) {
-			t.e = [];
-			return t.f.every(f => f(args[0]));
-		},
-	});
-
-	// @ts-ignore: Can't find the 'f' field on 'me', but I know better than you typescript.
-	return me;
+function assignDescriptors<T, S1>(target: T, source1: S1): T & S1;
+function assignDescriptors<T, S1, S2>(target: T, source1: S1, source2: S2): T & S1 & S2;
+function assignDescriptors(target: any, ...sources: any[]): any;
+function assignDescriptors(target: any, ...sources: any[]): any {
+	return (sources.forEach(source => {
+		Object.defineProperties(target, Object.keys(source).reduce((descriptors, key) => {
+			descriptors[key] = Object.getOwnPropertyDescriptor(source, key);
+			return descriptors;
+		}, {}));
+	}), target);
 }
 
-function vErr(o: ModProxy<any>, msg: string): false {
-	o.e.push(new Error(msg));
-	return false;
+// Note, by the time this runs, the `__e` prop has already been assigned to the parent.
+// So if you want changes made to it to be visible, you must mutate, not re-assign.
+function extendGuard<T>(guard: EGuard<T>, ex: (v: T) => boolean, em: string): Guard<T> {
+	return (v): v is T => guard(v) && (ex(v) || (guard.__e.push(em), false));
 }
 
-//---------\\
-// Globals \\
-//---------\\
-
-const GLOBAL_MODS = {
-	optional: (o: ModProxy<any>) => (o["_optional"] = true, o) as OModProxy<any>,
-	custom: (o: ModProxy<any>) => (fn: (v: any) => boolean) => (o.f.push(fn), o),
-};
-
-//---------\\
-// Numbers \\
-//---------\\
-
-const NUMBER_MODS = {
-	integer: (o: ModProxy<number>) => {
-		const check = (v: number) => Number.isInteger(v) || vErr(o, `Number is not an integer.`);
-		return (o.f.push(check), o);
-	},
-
-	max: (o: ModProxy<number>) => (max: number) => {
-		const check = (v: number) => v <= max || vErr(o, `Number is larger than maximum of ${max}.`);
-		return (o.f.push(check), o);
-	},
-
-	min: (o: ModProxy<number>) => (min: number) => {
-		const check = (v: number) => v >= min || vErr(o, `Number is smaller than minimum of ${min}`);
-		return (o.f.push(check), o);
-	},
-
-	lt: (o: ModProxy<number>) => (max: number) => {
-		const check = (v: number) => v < max || vErr(o, `Number is not less than the upper limit of ${max}.`);
-		return (o.f.push(check), o);
-	},
-
-	gt: (o: ModProxy<number>) => (min: number) => {
-		const check = (v: number) => v > min || vErr(o, `Number is not greater than the lower limit of ${min}.`);
-		return (o.f.push(check), o);
-	},
-
-	// As a mathematical interval (eg, "[0, 1)" style notation):
-	interval: (o: ModProxy<number>) => (range: string) => {
-		const rangeCheck = parseRange(range);
-		const check = (v: number) => rangeCheck(v) || vErr(o, `Number is not within specified range of ${range}.`);
-		return (o.f.push(check), o);
-	}
-}
-
-//--- Number Helpers ---\\
+//--
 
 function parseRange(range: string): (v: number) => boolean {
 	const range_parse = range.match(/^([[(])\s*(.*?),\s*(.*?)\s*([\])])$/);
 	if (!range_parse) throw new Error("Invalid range expression.");
 
-	const range_vals = [+range_parse[2], +range_parse[3]];
+	const range_vals = [toNum(range_parse[2]), toNum(range_parse[3])];
 	if (range_vals.some(n => Number.isNaN(n))) throw new Error("Invalid interval expression.");
 	if (range_vals[0] > range_vals[1]) throw new Error("Invalid interval expression (interval defines the empty set).");
 
@@ -84,244 +33,260 @@ function parseRange(range: string): (v: number) => boolean {
 		        (range_parse[4] === ")" ? v < range_vals[1] : v <= range_vals[1]);
 }
 
-//---------\\
-// Strings \\
-//---------\\
-
-const STRING_MODS = {
-	regex: (o: ModProxy<string>) => (rgx: RegExp) => {
-		const check = (v: string) => rgx.test(v) || vErr(o, "String did not pass the specified RegExp.");
-		return (o.f.push(check), o);
-	},
-
-	email: (o: ModProxy<string>) => {
-		const check = (v: string) => email_regex.test(v) || vErr(o, "String did not appear to be a valid email.");
-		return (o.f.push(check), o);
-	},
-
-	alphanumeric: (o: ModProxy<string>) => {
-		const check = (v: string) => alphanum_regex.test(v) || vErr(o, "String did not appear to be alphanumeric.");
-		return (o.f.push(check), o);
-	},
-
-	base64: (o: ModProxy<string>) => {
-		const check = (v: string) => base64_regex.test(v) || vErr(o, "String did not appear to be valid base64.");
-		return (o.f.push(check), o);
-	},
-
-	hex: (o: ModProxy<string>) => {
-		const check = (v: string) => hex_regex.test(v) || vErr(o, "String did not appear to be valid hex.");
-		return (o.f.push(check), o);
-	},
-
-	minLen: (o: ModProxy<string>) => (min: number) => {
-		const check = (v: string) => v.length >= min || vErr(o, "String length is smaller than the minimum.");
-		return (o.f.push(check), o);
-	},
-
-	maxLen: (o: ModProxy<string>) => (max: number) => {
-		const check = (v: string) => v.length <= max || vErr(o, "String length is larger than the maximum.");
-		return (o.f.push(check), o);
-	},
-
-	isLen: (o: ModProxy<string>) => (len: number) => {
-		const check = (v: string) => v.length === len || vErr(o, "String length is not equal to the specified length.");
-		return (o.f.push(check), o);
-	},
-};
-
-//--- String Helpers ---\\
+// We use this to convert strings to numbers with support for common mathematical constants.
+function toNum(s: string): number {
+	if (["π", "Math.PI"].includes(s)) return Math.PI;
+	if (["e", "Math.E"].includes(s)) return Math.E;
+	if (["√2", "√(2)", "Math.SQRT2"].includes(s)) return Math.SQRT2;
+	if (["√1/2", "√(1/2)", "Math.SQRT1_2"].includes(s)) return Math.SQRT1_2;
+	if (["ln2", "ln(2)", "Math.LN2"].includes(s)) return Math.LN2;
+	if (["ln10", "ln(10)", "Math.LN10"].includes(s)) return Math.LN10;
+	if (["log2e", "log2(e)", "Math.LOG2E"].includes(s)) return Math.LOG2E;
+	if (["log10e", "log10(e)", "Math.LOG10E"].includes(s)) return Math.LOG10E;
+	if (["∞"].includes(s)) return Infinity;
+	if (["-∞"].includes(s)) return -Infinity;
+	return +s;
+}
 
 const email_regex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 const alphanum_regex = /^[a-zA-Z0-9]*$/i;
 const base64_regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const hex_regex = /^([abcdef0-9]{2})*$/i;
 
-//--------\\
-// Arrays \\
-//--------\\
+//--- Mod Sets ---\\
 
-const ARRAY_MODS = {
-	minLen: <T>(o: ModProxy<T[]>) => (min: number) => {
-		const check = (v: T[]) => v.length >= min || vErr(o, `Array length is smaller than the minimum of ${min}.`);
-		return (o.f.push(check), o);
+const global_mods = {
+
+	get optional(this: EGuard<any> & {__optional: true}) {
+		return (this.__optional = true, this);
 	},
 
-	maxLen: <T>(o: ModProxy<T[]>) => (max: number) => {
-		const check = (v: T[]) => v.length <= max || vErr(o, `Array length is larger than the maximum of ${max}.`);
-		return (o.f.push(check), o);
-	},
-
-	isLen: <T>(o: ModProxy<T[]>) => (len: number) => {
-		const check = (v: T[]) => v.length === len || vErr(o, `Array length is not equal to the specified length of ${len}.`);
-		return (o.f.push(check), o);
+	// TODO: move this to be a 'shape mod', it does not apply globally like optional does...
+	get noextra(this: EGuard<any> & {__noextra: true}) {
+		return (this.__noextra = true, this);
 	},
 };
 
-//--------\\
-// Shapes \\
-//--------\\
+const number_mods = {
 
-// Since the shape mod 'noextra' needs to know the shape spec to work, we can't have
-// a predefined set of mods. We have to construct them dynamically so that each one
-// can respond to the shape spec specifically.
-
-const createShapeMods = (shape_spec: {[k: string]: ModProxy<any>}) => ({
-	noextra: <T>(o: ModProxy<T>) => {
-		const check = (v: T) => Object.keys(v).every(k => k in shape_spec || vErr(o, `Object does not allow additional keys, found unknown key: ${k}.`));
-		return (o.f.push(check), o);
+	get integer(this: EGuard<number>) {
+		return assignDescriptors(extendGuard(this, n => Number.isInteger(n), "Number is not an integer."), this);
 	},
-});
 
-//--------------\\
-// The V Object \\
-//--------------\\
+	get max(this: EGuard<number>) {
+		return (max: number) => assignDescriptors(extendGuard(this, n => n <= max, `Value is larger than maximum of ${max}.`), this);
+	},
 
-const VBase = {
-	boolean: Object.assign((o: ModProxy<any>) => {
-		const check = (v: unknown) => typeof v === "boolean" || vErr(o, "Value is not a boolean.");
-		return (o.f.push(check), o) as ModProxy<boolean> & SelfMap<DeMod<boolean, typeof GLOBAL_MODS>>;
-	}, {m: {...GLOBAL_MODS}}),
+	get lt(this: EGuard<number>) {
+		return (max: number) => assignDescriptors(extendGuard(this, n => n < max, `Value is not smaller than upper limit of ${max}.`), this);
+	},
 
-	string: Object.assign((o: ModProxy<any>) => {
-		const check = (v: unknown) => typeof v === "string" || vErr(o, "Value is not a string.");
-		return (o.f.push(check), o) as ModProxy<string> & SelfMap<DeMod<string, typeof GLOBAL_MODS & typeof STRING_MODS>>;
-	}, {m: {...GLOBAL_MODS, ...STRING_MODS}}),
+	get min(this: EGuard<number>) {
+		return (min: number) => assignDescriptors(extendGuard(this, n => n >= min, `Value is smaller than minimum of ${min}.`), this);
+	},
 
-	number: Object.assign((o: ModProxy<any>) => {
-		const check = (v: unknown) => typeof v === "number" || vErr(o, "Value is not a number.");
-		return (o.f.push(check), o) as ModProxy<number> & SelfMap<DeMod<number, typeof GLOBAL_MODS & typeof NUMBER_MODS>>;
-	}, {m: {...GLOBAL_MODS, ...NUMBER_MODS}}),
+	get gt(this: EGuard<number>) {
+		return (min: number) => assignDescriptors(extendGuard(this, n => n > min, `Value is not larger than lower limit of ${min}.`), this);
+	},
 
-	literal: (o: ModProxy<any>) => Object.assign(<T extends Primitive>(lit: T) => {
-		const check = (v: unknown) => v === lit || vErr(o, `Value was not the specified literal: ${lit}.`);
-		return (o.f.push(check), o) as ModProxy<T> & SelfMap<DeMod<T, typeof GLOBAL_MODS>>;
-	}, {m: {...GLOBAL_MODS}}),
+	get interval(this: EGuard<number>) {
+		return (interval: string) => assignDescriptors(extendGuard(this, parseRange(interval), `Value is not within specified interval of ${interval}.`), this);
+	},
 
-	arrayOf: (o: ModProxy<any>) => Object.assign(<T>(type: ModProxy<T>) => {
-		const check = (v: unknown) => (v instanceof Array || vErr(o, "Value is not an array.")) && ((v as T[]).every(e => type(e)) || vErr(o, "Array items are not of correct type."));
-		return (o.f.push(check), o) as ModProxy<T[]> & SelfMap<DeMod<T[], typeof GLOBAL_MODS & typeof ARRAY_MODS>>;
-	}, {m: {...GLOBAL_MODS, ...ARRAY_MODS}}),
+};
 
-	mapOf: (o: ModProxy<any>) => Object.assign(<T>(type: ModProxy<T>) => {
-		const check = (v: unknown) => (v && typeof v === "object" || vErr(o, "Value is not an object.")) && (Object.values(v as any).every(e => type(e)) || vErr(o, "Object has (at least) one value of incorrect type."));
-		return (o.f.push(check), o) as ModProxy<{[K: string]: T}> & SelfMap<DeMod<T, typeof GLOBAL_MODS>>
-	}, {m: {...GLOBAL_MODS}}),
+const string_mods = {
 
-	// shape: (o: ModProxy<any>) => Object.assign(<T extends {[K: string]: OModProxy<any>|RModProxy<any>}>(shape: T) => {
-	// 	const check = (v: unknown) => v && typeof v === "object" && Object.entries(shape).every(([k, mp]: any) => (k in (v as any) ? mp((v as any)[k]) : mp["_optional"]) || vErr(o, `Value was not of correct shape, key "${k}" is ${k in (v as any) ? "invalid" : "missing"}`));
-	// 	return (o.f.push(check), o["m"] = {...o["m"], ...createShapeMods(shape)}, o) as ModProxy<DeOpt<T>> & SelfMap<DeMod<DeOpt<T>, typeof GLOBAL_MODS & ReturnType<typeof createShapeMods>>>
-	// }, {m: {...GLOBAL_MODS}}), // fuck..., No access to shape spec at this phase...
+	get regex(this: EGuard<string>) {
+		return (regex: RegExp) => assignDescriptors(extendGuard(this, s => regex.test(s), `Value failed to pass regex: ${regex}.`), this);
+	},
 
-	// Redux with IIFE, this is gross but I gotta get it working somehow...
-	shape: (o: ModProxy<any>) => Object.assign((() => {
-		const me = <T extends {[K: string]: OModProxy<any>|RModProxy<any>}>(shape: T) => {
-			const check = (v: unknown) => v && typeof v === "object" && Object.entries(shape).every(([k, mp]: any) => (k in (v as any) ? mp((v as any)[k]) : mp["_optional"]) || vErr(o, `Value was not of correct shape, key "${k}" is ${k in (v as any) ? "invalid" : "missing"}`));
-			return (o.f.push(check), me["m"] = {...me["m"], ...createShapeMods(shape)}, o) as ModProxy<DeOpt<T>> & SelfMap<DeMod<DeOpt<T>, typeof GLOBAL_MODS & ReturnType<typeof createShapeMods>>>
+	get email(this: EGuard<string>) {
+		return assignDescriptors(extendGuard(this, s => email_regex.test(s), `Value is not a valid email address.`), this);
+	},
+
+	get alphanumeric(this: EGuard<string>) {
+		return assignDescriptors(extendGuard(this, s => alphanum_regex.test(s), "Value is not an alphanumeric string."), this);
+	},
+
+	get base64(this: EGuard<string>) {
+		return assignDescriptors(extendGuard(this, s => base64_regex.test(s), "Value is not a valid base64 string."), this);
+	},
+
+	get hex(this: EGuard<string>) {
+		return assignDescriptors(extendGuard(this, s => hex_regex.test(s), "Value is not a valid hex string."), this);
+	},
+
+	get minLen(this: EGuard<string>) {
+		return (min: number) => assignDescriptors(extendGuard(this, s => s.length >= min, `Value is shorter than minimum length of ${min}.`), this);
+	},
+
+	get maxLen(this: EGuard<string>) {
+		return (max: number) => assignDescriptors(extendGuard(this, s => s.length <= max, `Value is longer than maximum length of ${max}`), this);
+	},
+
+	get isLen(this: EGuard<string>) {
+		return (len: number) => assignDescriptors(extendGuard(this, s => s.length === len, `Value is not the specified length of ${len}.`), this);
+	},
+
+};
+
+const array_mods = {
+
+	get minLen(this: EGuard<any[]>) {
+		return (min: number) => assignDescriptors(extendGuard(this, s => s.length >= min, `Value is shorter than minimum length of ${min}.`), this);
+	},
+
+	get maxLen(this: EGuard<any[]>) {
+		return (max: number) => assignDescriptors(extendGuard(this, s => s.length <= max, `Value is longer than maximum length of ${max}`), this);
+	},
+
+	get isLen(this: EGuard<any[]>) {
+		return (len: number) => assignDescriptors(extendGuard(this, s => s.length === len, `Value is not the specified length of ${len}.`), this);
+	},
+
+};
+
+// const shape_mods = {
+
+// };
+
+//--- The V Object ---\\
+
+// Note, properly getting the types for this involves overriding what typescript thinks it
+// is (because you're wrong, typescript), mostly since we make liberal use of javascript's
+// unique `this` semantics, which typescript (understandably) finds difficult to track.
+//
+// Moreover, the 'shape' function is by far the most complex one here, and it irritates me.
+// But I don't know of any cleaner way for it to accomplish its job, so...
+// The thing is like a 500 character single line function. SMH.
+
+const V = {
+
+	get boolean(): RecursiveModdedGuard<boolean, typeof global_mods> {
+		const guard = Object.assign((v: unknown): v is boolean => typeof v === "boolean" || (guard.__e.push("Value is not a boolean"), false), {__e: [] as string[]});
+		return assignDescriptors(guard, global_mods) as any;
+	},
+
+	get number(): RecursiveModdedGuard<number, typeof number_mods & typeof global_mods> {
+		const guard = Object.assign((v: unknown): v is number => typeof v === "number" || (guard.__e.push("Value is not a number."), false), {__e: [] as string[]});
+		return assignDescriptors(guard, number_mods, global_mods) as any;
+	},
+
+	get string(): RecursiveModdedGuard<string, typeof string_mods & typeof global_mods> {
+		const guard = Object.assign((v: unknown): v is string => typeof v === "string" || (guard.__e.push("Value is not a string."), false), {__e: [] as string[]});
+		return assignDescriptors(guard, string_mods, global_mods) as any;
+	},
+
+	get literal(): <T extends Primitive>(lit: T) => RecursiveModdedGuard<T, typeof global_mods> {
+		return <T extends Primitive>(lit: T) => {
+			const guard = Object.assign((v: unknown): v is T => v === lit || (guard.__e.push(`Value is not the specified literal ${typeof lit}:${lit}.`), false), {__e: [] as string[]});
+			return assignDescriptors(guard, global_mods) as any;
 		};
-
-		return me;
-	})(), {m: {...GLOBAL_MODS}}), // fuck..., No access to shape spec at this phase...
-
-	// Forgive me father, for I have sinned. These function signatures are demonic.
-
-	oneOf: (o: ModProxy<any>) => Object.assign(<T1, T2 = never, T3 = never, T4 = never, T5 = never>(...types: [ModProxy<T1>, ModProxy<T2>?, ModProxy<T3>?, ModProxy<T4>?, ModProxy<T5>?]) => {
-		const check = (v: unknown) => types.some(fn => fn!(v)) || vErr(o, "Value was none of the specified types.");
-		return (o.f.push(check), o) as ModProxy<T1 | T2 | T3 | T4 | T5> & SelfMap<DeMod<T1 | T2 | T3 | T4 | T5, typeof GLOBAL_MODS>>;
-	}, {m: {...GLOBAL_MODS}}),
-
-	allOf: (o: ModProxy<any>) => Object.assign(<T1, T2 = unknown, T3 = unknown, T4 = unknown, T5 = unknown>(...types: [ModProxy<T1>, ModProxy<T2>?, ModProxy<T3>?, ModProxy<T4>?, ModProxy<T5>?]) => {
-		const check = (v: unknown) => types.every(fn => fn!(v)) || vErr(o, "Value was not (at least) one of the specified types.");
-		return (o.f.push(check), o) as ModProxy<T1 & T2 & T3 & T4 & T5> & SelfMap<DeMod<T1 & T2 & T3 & T4 & T5, typeof GLOBAL_MODS>>
-	}, {m: {...GLOBAL_MODS}}),
-
-	// And finally, the custom validator, for your convenience.
-
-	custom: (o: ModProxy<any>) => Object.assign(<T = any>(fn: (v: unknown) => v is T) => {
-		const check = (v: unknown) => fn(v) || vErr(o, "Value failed a custom type check.");
-		return (o.f.push(check), o) as ModProxy<T> & SelfMap<DeMod<T, typeof GLOBAL_MODS>>;
-	}, {m: {...GLOBAL_MODS}}),
-}
-
-const V: {[K in keyof typeof VBase]: ReturnType<typeof VBase[K]>} = new Proxy(VBase as any, {
-	get: function(vobj, prop) {
-		if (!(prop in vobj)) return undefined;
-
-		const o = Object.assign(() => {}, {f: [], e: []});
-		const vdr = vobj[prop](o);
-
-		return "m" in vobj[prop]
-			? prox(vdr, vobj[prop].m)
-			: (...args: any[]) => prox(vdr(...args), vdr["m"]);
 	},
-	set: function(vobj, prop, val) {
-		if (prop !== "m") return false;
-		return (vobj[prop] = val, true);
+
+	get arrayOf(): <T>(type: EGuard<T>) => RecursiveModdedGuard<T[], typeof array_mods & typeof global_mods> {
+		return <T>(type: EGuard<T>) => {
+			const guard = Object.assign((v: unknown): v is T[] => (v instanceof Array || (guard.__e.push(`Value is not an array.`), false)) && ((v as any[]).every(e => type(e) || (guard.__e.push("Array items are not of the correct type.", ...type.__e), false))), {__e: [] as string[]});
+			return assignDescriptors(guard, array_mods, global_mods) as any;
+		};
 	},
-});
 
-//-------\\
-// Types \\
-//-------\\
+	get mapOf(): <T>(type: EGuard<T>) => RecursiveModdedGuard<{[K: string]: T}, typeof global_mods> {
+		return <T>(type: EGuard<T>) => {
+			const guard = Object.assign((v: unknown): v is {[K: string]: T} => (v && typeof v === "object" || (guard.__e.push("Value is not an object"), false)) && (Object.values(v as any).every(e => type(e) || (guard.__e.push("Map entries are not of the correct type", ...type.__e), false))), {__e: [] as string[]});
+			return assignDescriptors(guard, global_mods) as any;
+		}
+	},
 
-type OModProxy<T> = ModProxy<T> & {_optional: true};
-type RModProxy<T> = ModProxy<T> & {_optional?: never};
+	get shape(): <T extends ShapeForm>(spec: T) => RecursiveModdedGuard<UnOptFlag<T>, typeof global_mods> {
+		return <T extends ShapeForm>(spec: T) => {
+			const guard = Object.assign((v: any): v is T => (v && typeof v === "object" || (guard.__e.push("Value is not an object."), false)) && Object.entries(spec).every(([k, gd]: any) => (k in v ? gd(v[k]) : gd["__optional"]) || (guard.__e.push(`Value is not of correct shape. Key ${k} is ${k in v ? "invalid" : "missing"}.`, ...gd.__e), false)) && (guard["__noextra"] ? Object.keys(v).every(k => k in spec || (guard.__e.push(`Value is not of correct shape. Contains unknown key ${k}, and extra keys are not allowed.`), false)) : true), {__e: [] as string[]});
+			return assignDescriptors(guard, global_mods) as any;
+		};
+	},
 
-type ModProxy<T> = {
-	(v: unknown): v is T;
-	f: ((v: T) => boolean)[];
-	e: Error[];
-}
+	get oneOf(): <T1, T2 = never, T3 = never, T4 = never, T5 = never>(...types: [EGuard<T1>, EGuard<T2>?, EGuard<T3>?, EGuard<T4>?, EGuard<T5>?]) => RecursiveModdedGuard<T1 | T2 | T3 | T4 | T5, typeof global_mods> {
+		return <T1, T2 = never, T3 = never, T4 = never, T5 = never>(...types: [EGuard<T1>, EGuard<T2>?, EGuard<T3>?, EGuard<T4>?, EGuard<T5>?]) => {
+			const guard = Object.assign((v: unknown): v is T1 | T2 | T3 | T4 | T5 => types.some(type => type!(v)) || (guard.__e.push("Value is none of the specified types.", ...([] as string[]).concat(...types.map(type => type!.__e))), false), {__e: [] as string[]});
+			return assignDescriptors(guard, global_mods) as any;
+		};
+	},
 
-type ModSet<T> = {
-	[mod_name: string]:
-		((o: ModProxy<T>) => ModProxy<T>) |
-		((o: ModProxy<T>) => (...args: any[]) => ModProxy<T>);
-}
+	get allOf(): <T1, T2 = unknown, T3 = unknown, T4 = unknown, T5 = unknown>(...types: [EGuard<T1>, EGuard<T2>?, EGuard<T3>?, EGuard<T4>?, EGuard<T5>?]) => RecursiveModdedGuard<T1 & T2 & T3 & T4 & T5, typeof global_mods> {
+		return <T1, T2 = unknown, T3 = unknown, T4 = unknown, T5 = unknown>(...types: [EGuard<T1>, EGuard<T2>?, EGuard<T3>?, EGuard<T4>?, EGuard<T5>?]) => {
+			const guard = Object.assign((v: unknown): v is T1 & T2 & T3 & T4 & T5 => types.every(type => type!(v) || (guard.__e.push("Value is not one of the specified types.", ...type!.__e), false)), {__e: [] as string[]});
+			return assignDescriptors(guard, global_mods) as any;
+		};
+	},
 
-type DeMod<S, T extends ModSet<S>> = {
-	[K in keyof T]:
-		T[K] extends (o: ModProxy<any>) => OModProxy<S>
-		? OModProxy<S>
-		: T[K] extends ((o: ModProxy<any>) => (...args: infer A) => ModProxy<S>)
-		? (...args: A) => OModProxy<S>
-		: T[K] extends (o: ModProxy<any>) => ModProxy<S>
-		? ModProxy<S>
-		: T[K] extends ((o: ModProxy<any>) => (...args: infer A) => ModProxy<S>)
-		? (...args: A) => ModProxy<S>
-		: never;
-}
+	get custom(): <T>(type: Guard<T>) => RecursiveModdedGuard<T, typeof global_mods> {
+		return <T>(type: Guard<T>) => {
+			const guard = Object.assign((v: unknown): v is T => type(v) || (guard.__e.push("Value failed the custom type check."), false), {__e: [] as string[]});
+			return assignDescriptors(guard, global_mods) as any;
+		};
+	},
+};
 
-type SelfMap<T> = {
-	[K in keyof T]:
-		T[K] extends ModProxy<any>
-		? T[K] & SelfMap<T>
-		: T[K] extends (...args: infer A) => OModProxy<infer R>
-		? (...args: A) => OModProxy<R> & SelfMap<T>
-		: T[K] extends (...args: infer A) => ModProxy<infer R>
-		? (...args: A) => ModProxy<R> & SelfMap<T>
-		: never;
-}
+//--- Types ---\\
 
-// This is required to force the 'literal' validator to infer literal types.
 type Primitive = undefined | null | string | number | boolean | {};
 
-type DeOpt<T extends {[K: string]: OModProxy<any>|RModProxy<any>}> = {
-	[K in OnlyOptKeys<T>]?: T[K] extends OModProxy<infer R> ? R : never;
-} & {
-	[K in OnlyReqKeys<T>]: T[K] extends RModProxy<infer R> ? R : never;
+type Guard<T> = (v: unknown) => v is T;
+type EGuard<T> = Guard<T> & {__e: string[]};
+
+// This type is pretty terrible. It's big and hard to follow, but since typescript can't infer
+// the way we use a very polymorphic this, we need to tell it manually how the modifiers work.
+// Namely, modifiers are recursive, and should forward info about prior ones (such as optional),
+// so we write this type to automatically apply the type to it's own keys recursivly, and forward
+// the optional flag to items further down the chain when found.
+
+type RecursiveModdedGuard<T, M> = EGuard<T> & {
+	[K in keyof M]: M[K] extends (...args: infer A) => EGuard<any>
+		? (...args: A) => RecursiveModdedGuard<T, OptForward<M[K], M>> & OptJust<M[K]>
+		: RecursiveModdedGuard<T, OptForward<M[K], M>> & OptJust<M[K]>;
 }
 
-type OnlyOptKeys<T extends {[K: string]: OModProxy<any>|RModProxy<any>}> = {
-	[K in keyof T]: T[K] extends OModProxy<any> ? K : never;
+type ShapeForm = {
+	[K: string]: Flagged<Guard<any>, "__optional">;
+}
+
+//--- Conveinence ---\\
+
+type FOpt = {__optional: true};
+type MapOpt<T> = {
+	[K in keyof T]: T[K] & FOpt;
+}
+
+type OptForward<P, T> = P extends FOpt ? MapOpt<T> : T;
+type OptJust<P> = P extends FOpt ? FOpt : unknown;
+
+//--- Fancy Type Algebra ---\\
+
+// I wish I didn't have to do this crazyness. Surely there's a way to simplify this as
+// well, but I don't know what right now. So, for now, this stays, for better or worse.
+
+type Flagged<T, F extends string> = (T & { [X in F]: true }) | (T & { [X in F]?: never; });
+type UnFlag<F extends string, M extends Flagged<any, F>, M1, M2> = M extends {[X in F]: true} ? M1 : M2;
+
+type UnFlagL<F extends string, M extends Flagged<any, F>, M1> = UnFlag<F, M, never, M1>;
+type UnFlagR<F extends string, M extends Flagged<any, F>, M1> = UnFlag<F, M, M1, never>;
+
+type UnFlagLK<T extends {[K: string]: Flagged<any, "__optional">}> = {
+	[K in keyof T]: UnFlagL<"__optional", T[K], K>;
 }[keyof T];
 
-type OnlyReqKeys<T extends {[K: string]: OModProxy<any>|RModProxy<any>}> = {
-	[K in keyof T]: T[K] extends RModProxy<any> ? K : never;
+type UnFlagRK<T extends {[K: string]: Flagged<any, "__optional">}> = {
+	[K in keyof T]: UnFlagR<"__optional", T[K], K>;
 }[keyof T];
 
-//---------\\
-// Exports \\
-//---------\\
+type UnOptFlag<T extends {[K: string]: Flagged<Guard<any>, "__optional">}> = {
+	[K in UnFlagLK<T>]: T[K] extends Guard<infer U> ? UnFlagL<"__optional", T[K], U> : never;
+} & {
+	[K in UnFlagRK<T>]?: T[K] extends Guard<infer U> ? UnFlagR<"__optional", T[K], U>: never;
+}
+
+//--- Exports ---\\
 
 export { V };
+export default V;

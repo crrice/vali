@@ -406,6 +406,8 @@ if (false as boolean) {
 	const v: unknown = undefined;
 
 	if (f(v)) {
+		v.foo
+		v.bar
 		const test1: TestAssignToMe = v;
 		const test2: number = v.bar && v.bar[0] || 0;
 		console.log(test1, test2);

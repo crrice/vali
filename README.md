@@ -55,7 +55,13 @@ if (validate(obj)) {
 	// obj meets the criteria, do your processing here:
 } else {
 	// obj does not meet the criteria. Return an error or
-	// do other processing.
+	// do other processing. You can see why it failed by using:
+   console.log(validate.getErrors());
+
+   // That returns an array of strings, showing what went wrong with
+   // the validation on the previous invokation of the validator.
+   // If there was an issue, the returned array will contain strings
+   // logging why the validation failed at each appropriate level.
 }
 
 ```
@@ -91,6 +97,10 @@ if (validate(obj)) {
 	if (obj.options && obj.options.targets) {
 		const uppered = obj.options.targets.map(s => s.toUpperCase());
 	}
+} else {
+   // Finally, you can find out what went wrong to return in a response,
+   // or to log for later.
+   console.log(validate.getErrors());
 }
 
 ```
@@ -102,6 +112,11 @@ if (validate(obj)) {
 All validator functions are functions of the form:
 
 `(object: any) => boolean`
+
+A validator function also has a `getErrors` method, which accepts no parameters
+and retuns an array of strings representing the validation failures on the last
+invokation of the validator. The error list is reset every time the validator is
+called.
 
 The following `V` functions can be used directly:
 

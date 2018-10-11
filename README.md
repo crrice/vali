@@ -56,12 +56,12 @@ if (validate(obj)) {
 } else {
 	// obj does not meet the criteria. Return an error or
 	// do other processing. You can see why it failed by using:
-   console.log(validate.getErrors());
+	console.log(validate.getErrors());
 
-   // That returns an array of strings, showing what went wrong with
-   // the validation on the previous invokation of the validator.
-   // If there was an issue, the returned array will contain strings
-   // logging why the validation failed at each appropriate level.
+	// That returns an array of strings, showing what went wrong with
+	// the validation on the previous invokation of the validator.
+	// If there was an issue, the returned array will contain strings
+	// logging why the validation failed at each appropriate level.
 }
 
 ```
@@ -98,9 +98,9 @@ if (validate(obj)) {
 		const uppered = obj.options.targets.map(s => s.toUpperCase());
 	}
 } else {
-   // Finally, you can find out what went wrong to return in a response,
-   // or to log for later.
-   console.log(validate.getErrors());
+	// Finally, you can find out what went wrong to return in a response,
+	// or to log for later.
+	console.log(validate.getErrors());
 }
 
 ```

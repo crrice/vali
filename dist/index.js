@@ -130,7 +130,7 @@ const V = {
     },
     get literal() {
         return (lit) => {
-            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || v === lit || (guard.__e.push(`Value is not the specified literal ${typeof lit}:${lit}.`), false), { __e: [], getErrors: () => guard.__e });
+            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || v === lit || (guard.__e.push(`Value is not the specified literal ${typeof lit}, instead got: ${lit}.`), false), { __e: [], getErrors: () => guard.__e });
             return assignDescriptors(guard, global_mods);
         };
     },
@@ -148,7 +148,7 @@ const V = {
     },
     get shape() {
         return (spec) => {
-            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object."), false)) && Object.entries(spec).every(([k, gd]) => (k in v ? gd(v[k]) : gd["__optional"]) || (guard.__e.push(`Value is not of correct shape. Key ${k} is ${k in v ? "invalid" : "missing"}.`, ...gd.__e), false)) && (guard["__noextra"] ? Object.keys(v).every(k => k in spec || (guard.__e.push(`Value is not of correct shape. Contains unknown key ${k}, and extra keys are not allowed.`), false)) : true), { __e: [], getErrors: () => guard.__e });
+            const guard = Object.assign((v) => (guard.__e.splice(0, guard.__e.length), false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object."), false)) && Object.entries(spec).every(([k, gd]) => (k in v ? gd(v[k]) : gd["__optional"]) || (guard.__e.push(`Value is not of correct shape. Key '${k}' is ${k in v ? "invalid" : "missing"}.`, ...gd.__e), false)) && (guard["__noextra"] ? Object.keys(v).every(k => k in spec || (guard.__e.push(`Value is not of correct shape. Contains unknown key '${k}', and extra keys are not allowed.`), false)) : true), { __e: [], getErrors: () => guard.__e });
             return assignDescriptors(guard, global_mods);
         };
     },

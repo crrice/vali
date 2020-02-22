@@ -177,7 +177,7 @@ const V = {
 
 	get literal(): <T extends Primitive>(lit: T) => RecursiveModdedGuard<T, typeof global_mods> {
 		return <T extends Primitive>(lit: T) => {
-			const guard = Object.assign((v: unknown): v is T => (guard.__e.splice(0, guard.__e.length), false) || v === lit || (guard.__e.push(`Value is not the specified literal ${typeof lit}:${lit}.`), false), {__e: [] as string[], getErrors: () => guard.__e});
+			const guard = Object.assign((v: unknown): v is T => (guard.__e.splice(0, guard.__e.length), false) || v === lit || (guard.__e.push(`Value is not the specified literal ${typeof lit}, instead got: ${lit}.`), false), {__e: [] as string[], getErrors: () => guard.__e});
 			return assignDescriptors(guard, global_mods) as any;
 		};
 	},
@@ -198,7 +198,7 @@ const V = {
 
 	get shape(): <T extends ShapeForm>(spec: T) => RecursiveModdedGuard<UnOptFlag<T>, typeof global_mods> {
 		return <T extends ShapeForm>(spec: T) => {
-			const guard = Object.assign((v: any): v is T => (guard.__e.splice(0, guard.__e.length), false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object."), false)) && Object.entries(spec).every(([k, gd]: any) => (k in v ? gd(v[k]) : gd["__optional"]) || (guard.__e.push(`Value is not of correct shape. Key ${k} is ${k in v ? "invalid" : "missing"}.`, ...gd.__e), false)) && (guard["__noextra"] ? Object.keys(v).every(k => k in spec || (guard.__e.push(`Value is not of correct shape. Contains unknown key ${k}, and extra keys are not allowed.`), false)) : true), {__e: [] as string[], getErrors: () => guard.__e});
+			const guard = Object.assign((v: any): v is T => (guard.__e.splice(0, guard.__e.length), false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object."), false)) && Object.entries(spec).every(([k, gd]: any) => (k in v ? gd(v[k]) : gd["__optional"]) || (guard.__e.push(`Value is not of correct shape. Key '${k}' is ${k in v ? "invalid" : "missing"}.`, ...gd.__e), false)) && (guard["__noextra"] ? Object.keys(v).every(k => k in spec || (guard.__e.push(`Value is not of correct shape. Contains unknown key '${k}', and extra keys are not allowed.`), false)) : true), {__e: [] as string[], getErrors: () => guard.__e});
 			return assignDescriptors(guard, global_mods) as any;
 		};
 	},

@@ -52,6 +52,7 @@ const email_regex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"
 const alphanum_regex = /^[a-z0-9]*$/i;
 const base64_regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const hex_regex = /^([0-9a-f]{2})*$/i;
+const uuid_regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 //--- Mod Sets ---\\
 
@@ -114,6 +115,10 @@ const string_mods = {
 
 	get hex(this: EGuard<string>) {
 		return assignDescriptors(extendGuard(this, s => hex_regex.test(s), "Value is not a valid hex string."), this);
+	},
+
+	get uuid(this: EGuard<string>) {
+		return assignDescriptors(extendGuard(this, s => uuid_regex.test(s), "Value is not a valid UUID string."), this);
 	},
 
 	get minLen(this: EGuard<string>) {

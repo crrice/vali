@@ -176,6 +176,24 @@ const string_cases: Case[] = [{
 		{i: "1234567", o: false},
 	],
 }, {
+	n: "V.string.uuid",
+	f: V.string.uuid,
+	io: [
+		{i: "550e8400-e29b-41d4-a716-446655440000", o: true},
+		{i: "550E8400-E29B-41D4-A716-446655440000", o: true},
+		{i: "550e8400-E29B-41d4-A716-446655440000", o: true},
+		{i: "00000000-0000-0000-0000-000000000000", o: true},
+		{i: "6ba7b810-9dad-11d1-80b4-00c04fd430c8", o: true},
+		{i: "550e8400e29b41d4a716446655440000", o: false},
+		{i: "550e8400-e29b-41d4-a716-44665544000", o: false},
+		{i: "550e8400-e29b-41d4-a716", o: false},
+		{i: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", o: false},
+		{i: "", o: false},
+		{i: "550e8400-e29b-41d4-a716-446655440000-extra", o: false},
+		{i: "550e8400-e29b-41g4-a716-446655440000", o: false},
+		{i: "550e8400-e29b-41d4-a716-44665544000z", o: false},
+	],
+}, {
 	n: "V.string.minLen(4)",
 	f: V.string.minLen(4),
 	io: [
@@ -419,5 +437,19 @@ if (false as boolean) {
 		console.log(test1, test2);
 	} else {
 		throw new Error("Type did not satisfy predecate!");
+	}
+}
+
+if (false as boolean) {
+	const f = V.string.uuid;
+	const v: unknown = undefined;
+
+	if (f(v)) {
+		v.toUpperCase();
+		v.toLowerCase();
+		const test: string = v;
+		console.log(test.length);
+	} else {
+		throw new Error("Type did not satisfy predicate!");
 	}
 }

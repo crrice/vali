@@ -258,7 +258,11 @@ These modifiers are only accessable on a `V.string` validator.
 
  - `hex`
    This will ensure the string is valid hex-encoded binary data (even-length strings only).
-   Case insensitive, accepts both uppercase and lowercase.
+   Case insensitive.
+
+ - `uuid`
+   This will ensure the string is a valid UUID (RFC 4122 canonical format with dashes).
+   Case insensitive.
 
  - `minLen(minimum)`
    This will ensure the string is the specified length or longer.
@@ -350,6 +354,8 @@ With arguments:
    - Ensures value uses valid standard base64 encoding.
  - `hex`: String
    - Ensures value uses valid hex-encoded binary data (even-length strings, case insensitive).
+ - `uuid`: String
+   - Ensures value is a valid UUID string (RFC 4122 format with dashes, case insensitive).
  - `minLen(minimum)`
    - Ensures value has at least the specified length.
  - `maxLen(maximum)`

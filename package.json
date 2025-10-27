@@ -17,7 +17,9 @@
     "url": "git+https://github.com/crrice/vali.git"
   },
   "scripts": {
-    "test": "node ./dist/test.js"
+    "build": "tsc",
+    "test": "tsc && node ./dist/test.js",
+    "prepublishOnly": "npm run build"
   },
   "author": "Conor Rice",
   "license": "ISC",

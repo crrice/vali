@@ -248,8 +248,8 @@ These modifiers are only accessable on a `V.string` validator.
    a regular expression found at emailregex.com
 
  - `alphanumeric`
-   This will ensure the string is composed only of characters in a-z or 0-9. It is
-   case sensitive, so capital letters will not pass.
+   This will ensure the string is composed only of alphanumeric characters (A-Z, a-z, 0-9).
+   Case insensitive.
 
  - `base64`
    This will ensure the string is valid base64 encoded data. This is NOT url safe base64
@@ -257,8 +257,8 @@ These modifiers are only accessable on a `V.string` validator.
    include the proper padding at the end.
 
  - `hex`
-   This will ensure the string is valid hex encoded data. Case sensitive, so only lowercase
-   letters are allowed.
+   This will ensure the string is valid hex-encoded binary data (even-length strings only).
+   Case insensitive, accepts both uppercase and lowercase.
 
  - `minLen(minimum)`
    This will ensure the string is the specified length or longer.
@@ -345,11 +345,11 @@ With arguments:
  - `email`: String
    - Ensures value is an email address.
  - `alphanumeric`: String
-   - Ensures value is composed of only alphanumeric characters (lowercase only)
+   - Ensures value is composed of only alphanumeric characters (A-Z, a-z, 0-9, case insensitive)
  - `base64`: String
    - Ensures value uses valid standard base64 encoding.
  - `hex`: String
-   - Ensures value uses valid hex encoding.
+   - Ensures value uses valid hex-encoded binary data (even-length strings, case insensitive).
  - `minLen(minimum)`
    - Ensures value has at least the specified length.
  - `maxLen(maximum)`

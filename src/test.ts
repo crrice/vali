@@ -151,6 +151,8 @@ const string_cases: Case[] = [{
 	io: [
 		{i: "", o: true},
 		{i: "asdf1234", o: true},
+		{i: "ASDF1234", o: true},
+		{i: "AsDf1234", o: true},
 		{i: "10*10=100", o: false},
 	],
 }, {
@@ -167,7 +169,11 @@ const string_cases: Case[] = [{
 	io: [
 		{i: "", o: true},
 		{i: "deadbeef", o: true},
+		{i: "DEADBEEF", o: true},
+		{i: "DeAdBeEf", o: true},
 		{i: "deadbee", o: false},
+		{i: "12345678", o: true},
+		{i: "1234567", o: false},
 	],
 }, {
 	n: "V.string.minLen(4)",
@@ -371,7 +377,7 @@ const cases: Case[] = [
 
 const results = cases.map(c => {
 	console.log("Running Function:", c.n || c.f.name);
-	return c.io.every(io => c.f(io.i) === io.o || !!console.error("Failed for input:", io.i, "Got:", c.f(io.i), "Expected:", io.o));
+	return c.io.every(io => c.f(io.i) === io.o || (console.error("Failed for input:", io.i, "Got:", c.f(io.i), "Expected:", io.o), false));
 });
 
 if (results.every(Boolean)) {

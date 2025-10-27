@@ -49,9 +49,9 @@ function toNum(s: string): number {
 }
 
 const email_regex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-const alphanum_regex = /^[a-zA-Z0-9]*$/i;
+const alphanum_regex = /^[a-z0-9]*$/i;
 const base64_regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
-const hex_regex = /^([abcdef0-9]{2})*$/i;
+const hex_regex = /^([0-9a-f]{2})*$/i;
 
 //--- Mod Sets ---\\
 

@@ -194,6 +194,27 @@ const string_cases: Case[] = [{
 		{i: "550e8400-e29b-41d4-a716-44665544000z", o: false},
 	],
 }, {
+	n: "V.string.url",
+	f: V.string.url,
+	io: [
+		{i: "https://example.com", o: true},
+		{i: "http://example.com", o: true},
+		{i: "ftp://files.example.com", o: true},
+		{i: "https://example.com/path?query=1#hash", o: true},
+		{i: "http://192.168.1.1:8080", o: true},
+		{i: "http://localhost:3000", o: true},
+		{i: "https://example.com:443/path", o: true},
+		{i: "javascript:alert(1)", o: false},
+		{i: "data:text/plain,hello", o: false},
+		{i: "mailto:user@example.com", o: false},
+		{i: "file:///etc/passwd", o: false},
+		{i: "example.com", o: false},
+		{i: "//example.com", o: false},
+		{i: "not a url", o: false},
+		{i: "", o: false},
+		{i: "https://", o: false},
+	],
+}, {
 	n: "V.string.minLen(4)",
 	f: V.string.minLen(4),
 	io: [

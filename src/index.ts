@@ -135,6 +135,16 @@ const string_mods = {
 		return assignDescriptors(extendGuard(this, s => uuid_regex.test(s), "Value is not a valid UUID string."), this);
 	},
 
+	get url(this: EGuard<string>) {
+		return assignDescriptors(extendGuard(this, (s: string) => {
+			try {
+				return ['http:', 'https:', 'ftp:'].includes(new URL(s).protocol);
+			} catch {
+				return false;
+			}
+		}, "URL must use http, https, or ftp protocol."), this);
+	},
+
 	get minLen(this: EGuard<string>) {
 		return (min: number) => assignDescriptors(extendGuard(this, s => s.length >= min, `Value is shorter than minimum length of ${min}.`), this);
 	},

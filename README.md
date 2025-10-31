@@ -1,4 +1,9 @@
 # Váli
+
+[![npm version](https://img.shields.io/npm/v/@crrice/vali)](https://www.npmjs.com/package/@crrice/vali)
+[![npm downloads](https://img.shields.io/npm/dm/@crrice/vali)](https://www.npmjs.com/package/@crrice/vali)
+[![license](https://img.shields.io/npm/l/@crrice/vali)](https://github.com/crrice/vali/blob/master/UNLICENSE)
+
 A simple javascript object validation library with kickass typescript integration.
 
 # Install

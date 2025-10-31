@@ -1,6 +1,6 @@
 {
   "name": "@crrice/vali",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "A simple object validation library for Javascript, with kickass TypeScript integration.",
   "keywords": [
     "vali",

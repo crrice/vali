@@ -66,6 +66,20 @@ const global_mods = {
 	get noextra(this: EGuard<any> & {__noextra: true}) {
 		return (this.__noextra = true, this);
 	},
+
+	get withMessage(this: EGuard<any>) {
+		return (contextMessage: string) => {
+			const guard = (v: unknown): v is any => {
+				const result = this(v);
+				if (!result && !guard["__e"].contextAdded) {  // Only add if no context already added
+					guard["__e"].unshift(contextMessage);
+					guard["__e"].contextAdded = true;
+				}
+				return result;
+			};
+			return assignDescriptors(guard, this);
+		};
+	},
 };
 
 const number_mods = {
@@ -166,65 +180,65 @@ const array_mods = {
 const V = {
 
 	get boolean(): RecursiveModdedGuard<boolean, typeof global_mods> {
-		const guard = Object.assign((v: unknown): v is boolean => (guard.__e.splice(0, guard.__e.length), false) || typeof v === "boolean" || (guard.__e.push("Value is not a boolean"), false), {__e: [] as string[], getErrors: () => guard.__e});
+		const guard = Object.assign((v: unknown): v is boolean => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || typeof v === "boolean" || (guard.__e.push("Value is not a boolean"), false), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
 		return assignDescriptors(guard, global_mods) as any;
 	},
 
 	get number(): RecursiveModdedGuard<number, typeof number_mods & typeof global_mods> {
-		const guard = Object.assign((v: unknown): v is number => (guard.__e.splice(0, guard.__e.length), false) || typeof v === "number" || (guard.__e.push("Value is not a number."), false), {__e: [] as string[], getErrors: () => guard.__e});
+		const guard = Object.assign((v: unknown): v is number => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || typeof v === "number" || (guard.__e.push("Value is not a number."), false), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
 		return assignDescriptors(guard, number_mods, global_mods) as any;
 	},
 
 	get string(): RecursiveModdedGuard<string, typeof string_mods & typeof global_mods> {
-		const guard = Object.assign((v: unknown): v is string => (guard.__e.splice(0, guard.__e.length), false) || typeof v === "string" || (guard.__e.push("Value is not a string."), false), {__e: [] as string[], getErrors: () => guard.__e});
+		const guard = Object.assign((v: unknown): v is string => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || typeof v === "string" || (guard.__e.push("Value is not a string."), false), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
 		return assignDescriptors(guard, string_mods, global_mods) as any;
 	},
 
 	get literal(): <T extends Primitive>(lit: T) => RecursiveModdedGuard<T, typeof global_mods> {
 		return <T extends Primitive>(lit: T) => {
-			const guard = Object.assign((v: unknown): v is T => (guard.__e.splice(0, guard.__e.length), false) || v === lit || (guard.__e.push(`Value is not the specified literal ${typeof lit}, instead got: ${lit}.`), false), {__e: [] as string[], getErrors: () => guard.__e});
+			const guard = Object.assign((v: unknown): v is T => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || v === lit || (guard.__e.push(`Value is not the specified literal ${typeof lit}, instead got: ${lit}.`), false), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
 			return assignDescriptors(guard, global_mods) as any;
 		};
 	},
 
 	get arrayOf(): <T>(type: EGuard<T>) => RecursiveModdedGuard<T[], typeof array_mods & typeof global_mods> {
 		return <T>(type: EGuard<T>) => {
-			const guard = Object.assign((v: unknown): v is T[] => (guard.__e.splice(0, guard.__e.length), false) || (v instanceof Array || (guard.__e.push(`Value is not an array.`), false)) && ((v as any[]).every(e => type(e) || (guard.__e.push("Array items are not of the correct type.", ...type["__e"]), false))), {__e: [] as string[], getErrors: () => guard.__e});
+			const guard = Object.assign((v: unknown): v is T[] => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || (v instanceof Array || (guard.__e.push(`Value is not an array.`), false)) && ((v as any[]).every(e => type(e) || (guard.__e.push("Array items are not of the correct type.", ...type["__e"]), false))), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
 			return assignDescriptors(guard, array_mods, global_mods) as any;
 		};
 	},
 
 	get mapOf(): <T>(type: EGuard<T>) => RecursiveModdedGuard<{[K: string]: T}, typeof global_mods> {
 		return <T>(type: EGuard<T>) => {
-			const guard = Object.assign((v: unknown): v is {[K: string]: T} => (guard.__e.splice(0, guard.__e.length), false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object"), false)) && (Object.values(v as any).every(e => type(e) || (guard.__e.push("Map entries are not of the correct type", ...type["__e"]), false))), {__e: [] as string[], getErrors: () => guard.__e});
+			const guard = Object.assign((v: unknown): v is {[K: string]: T} => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object"), false)) && (Object.values(v as any).every(e => type(e) || (guard.__e.push("Map entries are not of the correct type", ...type["__e"]), false))), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
 			return assignDescriptors(guard, global_mods) as any;
 		}
 	},
 
 	get shape(): <T extends ShapeForm>(spec: T) => RecursiveModdedGuard<UnOptFlag<T>, typeof global_mods> {
 		return <T extends ShapeForm>(spec: T) => {
-			const guard = Object.assign((v: any): v is T => (guard.__e.splice(0, guard.__e.length), false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object."), false)) && Object.entries(spec).every(([k, gd]: any) => (k in v ? gd(v[k]) : gd["__optional"]) || (guard.__e.push(`Value is not of correct shape. Key '${k}' is ${k in v ? "invalid" : "missing"}.`, ...gd.__e), false)) && (guard["__noextra"] ? Object.keys(v).every(k => k in spec || (guard.__e.push(`Value is not of correct shape. Contains unknown key '${k}', and extra keys are not allowed.`), false)) : true), {__e: [] as string[], getErrors: () => guard.__e});
+			const guard = Object.assign((v: any): v is T => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object."), false)) && Object.entries(spec).every(([k, gd]: any) => (k in v ? gd(v[k]) : gd["__optional"]) || (guard.__e.push(`Value is not of correct shape. Key '${k}' is ${k in v ? "invalid" : "missing"}.`, ...gd.__e), false)) && (guard["__noextra"] ? Object.keys(v).every(k => k in spec || (guard.__e.push(`Value is not of correct shape. Contains unknown key '${k}', and extra keys are not allowed.`), false)) : true), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
 			return assignDescriptors(guard, global_mods) as any;
 		};
 	},
 
 	get oneOf(): <T1, T2 = never, T3 = never, T4 = never, T5 = never>(...types: [EGuard<T1>, EGuard<T2>?, EGuard<T3>?, EGuard<T4>?, EGuard<T5>?]) => RecursiveModdedGuard<T1 | T2 | T3 | T4 | T5, typeof global_mods> {
 		return <T1, T2 = never, T3 = never, T4 = never, T5 = never>(...types: [EGuard<T1>, EGuard<T2>?, EGuard<T3>?, EGuard<T4>?, EGuard<T5>?]) => {
-			const guard = Object.assign((v: unknown): v is T1 | T2 | T3 | T4 | T5 => (guard.__e.splice(0, guard.__e.length), false) || types.some(type => type!(v)) || (guard.__e.push("Value is none of the specified types.", ...([] as string[]).concat(...types.map(type => type!["__e"]))), false), {__e: [] as string[], getErrors: () => guard.__e});
+			const guard = Object.assign((v: unknown): v is T1 | T2 | T3 | T4 | T5 => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || types.some(type => type!(v)) || (guard.__e.push("Value is none of the specified types.", ...([] as string[]).concat(...types.map(type => type!["__e"]))), false), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
 			return assignDescriptors(guard, global_mods) as any;
 		};
 	},
 
 	get allOf(): <T1, T2 = unknown, T3 = unknown, T4 = unknown, T5 = unknown>(...types: [EGuard<T1>, EGuard<T2>?, EGuard<T3>?, EGuard<T4>?, EGuard<T5>?]) => RecursiveModdedGuard<T1 & T2 & T3 & T4 & T5, typeof global_mods> {
 		return <T1, T2 = unknown, T3 = unknown, T4 = unknown, T5 = unknown>(...types: [EGuard<T1>, EGuard<T2>?, EGuard<T3>?, EGuard<T4>?, EGuard<T5>?]) => {
-			const guard = Object.assign((v: unknown): v is T1 & T2 & T3 & T4 & T5 => (guard.__e.splice(0, guard.__e.length), false) || types.every(type => type!(v) || (guard.__e.push("Value is not one of the specified types.", ...type!["__e"]), false)), {__e: [] as string[], getErrors: () => guard.__e});
+			const guard = Object.assign((v: unknown): v is T1 & T2 & T3 & T4 & T5 => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || types.every(type => type!(v) || (guard.__e.push("Value is not one of the specified types.", ...type!["__e"]), false)), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
 			return assignDescriptors(guard, global_mods) as any;
 		};
 	},
 
 	get custom(): <T>(type: Guard<T>) => RecursiveModdedGuard<T, typeof global_mods> {
 		return <T>(type: Guard<T>) => {
-			const guard = Object.assign((v: unknown): v is T => (guard.__e.splice(0, guard.__e.length), false) || type(v) || (guard.__e.push("Value failed the custom type check."), false), {__e: [] as string[], getErrors: () => guard.__e});
+			const guard = Object.assign((v: unknown): v is T => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || type(v) || (guard.__e.push("Value failed the custom type check."), false), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
 			return assignDescriptors(guard, global_mods) as any;
 		};
 	},
@@ -236,12 +250,21 @@ type Primitive = undefined | null | string | number | boolean | {};
 
 type Guard<T> = (v: unknown) => v is T;
 
+// Error arrays include a contextAdded flag to prevent multiple .withMessage()
+// modifiers on the same validator from all adding their context when validation
+// fails. Only the first withMessage that sees a failure adds its message.
+type ErrorArray = string[] & { contextAdded?: boolean };
+
 // Note that along with the public "getErrors" method, an EGuard also
 // has a hidden "__e" property which getErrors returns. That property
 // should be accessed only by this package, since it is very picky about
-// how it is mutated / assigned.
+// how it is mutated / assigned. The __e array also has a contextAdded
+// flag used by withMessage to prevent duplicate context messages.
 
-type EGuard<T> = Guard<T> & {getErrors(): string[]};
+type EGuard<T> = Guard<T> & {
+	getErrors(): string[];
+	__e: ErrorArray;
+};
 
 // This type is pretty terrible. It's big and hard to follow, but since typescript can't infer
 // the way we use a very polymorphic this, we need to tell it manually how the modifiers work.

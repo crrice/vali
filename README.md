@@ -201,6 +201,58 @@ V.shape({
    It will cause the `V.shape` validator to return true even if the key this is
    attached to is absent.
 
+ - `withMessage(message)`
+   Prepends a custom error message when validation fails. When multiple `withMessage`
+   calls are chained on the same validator, only the message at the failing validation
+   step appears. For nested validators (e.g., `V.shape`), messages create a breadcrumb
+   trail showing the path to the failure.
+
+   Example:
+   ```javascript
+   const validator = V.string.email.withMessage("Invalid email address");
+
+   if (!validator("not-an-email")) {
+     console.log(validator.getErrors());
+     // ["Invalid email address", "Value is not a valid email address."]
+   }
+
+   // Nested validators create breadcrumb trails:
+   const nestedValidator = V.shape({
+     user: V.shape({
+       email: V.string.email.withMessage("Email format invalid")
+     }).withMessage("User data invalid")
+   }).withMessage("Request validation failed");
+
+   nestedValidator({user: {email: "bad"}});
+   console.log(nestedValidator.getErrors());
+   // ["Request validation failed",
+   //  "Value is not of correct shape. Key 'user' is invalid.",
+   //  "User data invalid",
+   //  "Value is not of correct shape. Key 'email' is invalid.",
+   //  "Email format invalid",
+   //  "Value is not a valid email address."]
+   ```
+
+   **Note on multiple withMessage calls:**
+   When multiple `.withMessage()` modifiers are chained on the same validator,
+   only the **first** one that sees a validation failure will add its message.
+   Subsequent withMessage calls are ignored. This prevents duplicate context messages.
+
+   Example:
+   ```javascript
+   // Only "First" appears - second withMessage is ignored
+   V.string.withMessage("First").withMessage("Second")(123);
+   // ["First", "Value is not a string."]
+
+   // To provide different messages for different validation steps,
+   // place withMessage after each validator in the chain:
+   V.string
+     .withMessage("Must be a string")
+     .minLen(5)
+     .withMessage("Must be at least 5 characters")(123);
+   // ["Must be a string", "Value is not a string."]
+   ```
+
  - `custom(func)`
    Requires you to pass in a function of the type `(v: unknown) => boolean`, and will
    cause the validator it is attached to to fail if the function returns false when
@@ -324,6 +376,10 @@ With arguments:
  - `optional`: Global
    - Only takes effect when used on a validator that is a field inside a `V.shape` schema.
    - Allows the key it is attached to to be ommited, and the `V.shape` validator will still return true.
+ - `withMessage(message)`: Global
+   - Prepends a custom error message when validation fails.
+   - For a single validator with multiple `.withMessage()` calls, only the message at the failing step appears.
+   - For nested validators (e.g., `V.shape`), messages stack to create a breadcrumb trail.
  - `custom(func)`: Global
    - Causes validator to fail if the given function returns falsy when passed the input value.
 

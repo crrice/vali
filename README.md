@@ -251,6 +251,13 @@ V.shape({
      .minLen(5)
      .withMessage("Must be at least 5 characters")(123);
    // ["Must be a string", "Value is not a string."]
+
+   // Different step fails, different message appears:
+   V.string
+     .withMessage("Must be a string")
+     .minLen(5)
+     .withMessage("Must be at least 5 characters")("ab");
+   // ["Must be at least 5 characters", "Value is shorter than minimum length of 5."]
    ```
 
  - `custom(func)`

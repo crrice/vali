@@ -361,6 +361,15 @@ These modifiers are only accessable on a `V.arrayOf` validator.
  - `isLen`
    This will ensure the array is exactly the specified length.
 
+##### Map Modifiers
+
+These modifiers are only accessable on a `V.mapOf` validator.
+
+ - `keys(validator)`
+   This will ensure all keys in the object pass the given string validator.
+   For example, `V.mapOf(V.string).keys(V.string.uuid)` validates an object
+   where all keys are valid UUIDs and all values are strings.
+
 ##### Shape Modifiers
 
  - `noextra`
@@ -453,6 +462,11 @@ With arguments:
    - Ensures value has at most the specified length.
  - `isLen(length)`
    - Ensures value has exactly the specified length.
+
+##### Map:
+
+ - `keys(validator)`
+   - Ensures all keys in the object pass the given string validator.
 
 ##### Shape:
 

@@ -15,8 +15,8 @@ function assignDescriptors(target: any, ...sources: any[]): any {
 
 // Note, by the time this runs, the `__e` prop has already been assigned to the parent.
 // So if you want changes made to it to be visible, you must mutate, not re-assign.
-function extendGuard<T>(guard: EGuard<T>, ex: (v: T) => boolean, em: string): Guard<T> {
-	return (v): v is T => guard(v) && (ex(v) || (guard["__e"].push(em), false));
+function extendGuard<T>(guard: EGuard<T>, ex: (v: T) => boolean, ...em: string[]): Guard<T> {
+	return (v): v is T => guard(v) && (ex(v) || (guard["__e"].push(...em), false));
 }
 
 //--
@@ -173,6 +173,13 @@ const array_mods = {
 	},
 };
 
+const map_mods = {
+
+	get keys(this: EGuard<{[K: string]: any}>) {
+		return (kv: EGuard<string>) => assignDescriptors(extendGuard(this, v => ((errors) => !errors.length || (this["__e"].push("At least one map key is not of the correct type.", ...errors), false))(Object.keys(v).map(k => !kv(k) && `Map key '${k}': ${kv["__e"][0]}`).filter(Boolean) as string[])), this);
+	},
+};
+
 // const shape_mods = {
 
 // };
@@ -218,10 +225,20 @@ const V = {
 		};
 	},
 
-	get mapOf(): <T>(type: EGuard<T>) => RecursiveModdedGuard<{[K: string]: T}, typeof global_mods> {
+	get mapOf(): <T>(type: EGuard<T>) => RecursiveModdedGuard<{[K: string]: T}, typeof map_mods & typeof global_mods> {
 		return <T>(type: EGuard<T>) => {
-			const guard = Object.assign((v: unknown): v is {[K: string]: T} => (guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false) || (v && typeof v === "object" || (guard.__e.push("Value is not an object"), false)) && (Object.values(v as any).every(e => type(e) || (guard.__e.push("Map entries are not of the correct type", ...type["__e"]), false))), {__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
-			return assignDescriptors(guard, global_mods) as any;
+
+			const guard = Object.assign((v: unknown): v is {[K: string]: T} =>
+				// Empty errors, reset context, then continues to next statement always:
+				(guard.__e.splice(0, guard.__e.length), guard.__e.contextAdded = false, false)
+				// Actual validation now: Make sure that value is an object:
+				|| (v && typeof v === "object" || (guard.__e.push("Value is not an object"), false))
+				// And all value types match the validator:
+				&& (Object.values(v as any).every(e => type(e) || (guard.__e.push("Map entries are not of the correct type", ...type["__e"]), false)))
+			// Assign fresh internals:
+			,{__e: [] as ErrorArray, getErrors: () => guard.__e as string[]});
+
+			return assignDescriptors(guard, map_mods, global_mods) as any;
 		}
 	},
 

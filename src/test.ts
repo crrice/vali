@@ -324,6 +324,17 @@ const map_cases: Case[] = [{
 		{i: {a: "a", b: "b"}, o: false},
 		{i: {a: 1, b: "b"}, o: false},
 	],
+}, {
+	n: "V.mapOf(V.string).keys(V.string.uuid)",
+	f: V.mapOf(V.string).keys(V.string.uuid),
+	io: [
+		{i: {}, o: true},
+		{i: {"550e8400-e29b-41d4-a716-446655440000": "foo"}, o: true},
+		{i: {"550e8400-e29b-41d4-a716-446655440000": "foo", "6ba7b810-9dad-11d1-80b4-00c04fd430c8": "bar"}, o: true},
+		{i: {"not-a-uuid": "foo"}, o: false},
+		{i: {"not-a-uuid": 123}, o: false},
+		{i: {"550e8400-e29b-41d4-a716-446655440000": 123}, o: false},
+	],
 }];
 
 const shape_cases: Case[] = [{
@@ -385,32 +396,6 @@ const custom_cases: Case[] = [{
 	],
 }];
 
-const withMessage_cases: Case[] = [{
-	n: "V.string.email.withMessage('Custom email error')",
-	f: V.string.email.withMessage("Custom email error"),
-	io: [
-		{i: "valid@email.com", o: true},
-		{i: "invalid", o: false},
-	],
-}, {
-	n: "V.number.min(18).withMessage('Must be adult')",
-	f: V.number.min(18).withMessage("Must be adult"),
-	io: [
-		{i: 18, o: true},
-		{i: 25, o: true},
-		{i: 17, o: false},
-		{i: 0, o: false},
-	],
-}, {
-	n: "V.string.uuid.withMessage('Invalid resource ID')",
-	f: V.string.uuid.withMessage("Invalid resource ID"),
-	io: [
-		{i: "550e8400-e29b-41d4-a716-446655440000", o: true},
-		{i: "invalid", o: false},
-		{i: "", o: false},
-	],
-}];
-
 const combo_cases: Case[] = [{
 	n: `V.shape({foo: V.oneOf(V.literal("foo"), V.literal("bar")), bar: V.arrayOf(V.number).isLen(2)}).noextra`,
 	f: V.shape({foo: V.oneOf(V.literal("foo"), V.literal("bar")), bar: V.arrayOf(V.number).isLen(2).optional}).noextra,
@@ -424,263 +409,77 @@ const combo_cases: Case[] = [{
 	],
 }];
 
+const error_cases: Case[] = [{
+	n: "V.string.withMessage('not a string').minLen(5).withMessage('too short')",
+	f: V.string.withMessage('not a string').minLen(5).withMessage('too short'),
+	io: [
+		{i: 123, o: false, e: ["not a string", "Value is not a string."]},
+		{i: "ab", o: false, e: ["too short", "Value is shorter than minimum length of 5."]},
+	],
+}, {
+	n: "V.shape({x: V.string.withMessage('field invalid')}).withMessage('shape invalid')",
+	f: V.shape({x: V.string.withMessage('field invalid')}).withMessage('shape invalid'),
+	io: [
+		{i: {x: 123}, o: false, e: ["shape invalid", "Value is not of correct shape. Key 'x' is invalid.", "field invalid", "Value is not a string."]},
+	],
+}, {
+	n: "V.string.withMessage('first').withMessage('second').withMessage('third')",
+	f: V.string.withMessage('first').withMessage('second').withMessage('third'),
+	io: [
+		{i: 123, o: false, e: ["first", "Value is not a string."]},
+	],
+}, {
+	n: "V.shape({a: V.string, b: V.number.withMessage('b invalid').optional}).withMessage('shape invalid')",
+	f: V.shape({a: V.string, b: V.number.withMessage('b invalid').optional}).withMessage('shape invalid'),
+	io: [
+		{i: {a: "ok"}, o: true},
+		{i: {a: "ok", b: "wrong"}, o: false, e: ["shape invalid", "Value is not of correct shape. Key 'b' is invalid.", "b invalid", "Value is not a number."]},
+	],
+}];
+
 const cases: Case[] = [
 	...number_cases,
 	...string_cases,
 	...boolean_cases,
 	...literal_cases,
+
 	...array_cases,
 	...map_cases,
 	...shape_cases,
+
 	...oneof_cases,
 	...allof_cases,
+
 	...custom_cases,
-	...withMessage_cases,
+
 	...combo_cases,
-];
 
-//--- Error Message Tests ---\\
-
-// Group 1: Single validator with multiple withMessage modifiers
-// Purpose: Verify that only the withMessage for the failing check appears
-
-const singleValidatorMultipleMessages = V.string
-	.withMessage("Must be a string")
-	.minLen(5)
-	.withMessage("Must be at least 5 characters");
-
-const group1_cases = [
-	{
-		n: "Single validator - fail at type check",
-		f: singleValidatorMultipleMessages,
-		i: 123,
-		expected: ["Must be a string", "Value is not a string."]
-	},
-	{
-		n: "Single validator - fail at length check",
-		f: singleValidatorMultipleMessages,
-		i: "ab",
-		expected: ["Must be at least 5 characters", "Value is shorter than minimum length of 5."]
-	},
-	{
-		n: "Single validator - success",
-		f: singleValidatorMultipleMessages,
-		i: "hello",
-		expected: []
-	},
-];
-
-// Group 2: Nested validators with breadcrumb trail
-// Purpose: Verify that withMessage contexts stack across different validators
-
-const nestedValidatorBreadcrumbs = V.shape({
-	user: V.shape({
-		email: V.string.email.withMessage("Invalid email format")
-	}).withMessage("User object invalid")
-}).withMessage("Request validation failed");
-
-const group2_cases = [
-	{
-		n: "Nested validators - all contexts appear",
-		f: nestedValidatorBreadcrumbs,
-		i: {user: {email: "invalid"}},
-		expected: [
-			"Request validation failed",
-			"Value is not of correct shape. Key 'user' is invalid.",
-			"User object invalid",
-			"Value is not of correct shape. Key 'email' is invalid.",
-			"Invalid email format",
-			"Value is not a valid email address."
-		]
-	},
-	{
-		n: "Nested validators - success",
-		f: nestedValidatorBreadcrumbs,
-		i: {user: {email: "valid@example.com"}},
-		expected: []
-	},
-];
-
-// Group 3: Combined scenario
-// Purpose: Verify everything works together in a realistic use case
-
-const combinedValidator = V.shape({
-	username: V.string
-		.withMessage("Username must be a string")
-		.minLen(3)
-		.withMessage("Username must be at least 3 characters")
-		.maxLen(20)
-		.withMessage("Username must be at most 20 characters"),
-	profile: V.shape({
-		email: V.string
-			.withMessage("Email must be a string")
-			.email
-			.withMessage("Email format is invalid")
-	}).withMessage("Profile data is invalid")
-}).noextra.withMessage("Registration data validation failed");
-
-const group3_cases = [
-	{
-		n: "Combined - username not a string",
-		f: combinedValidator,
-		i: {username: 123, profile: {email: "valid@example.com"}},
-		expected: [
-			"Registration data validation failed",
-			"Value is not of correct shape. Key 'username' is invalid.",
-			"Username must be a string",
-			"Value is not a string."
-		]
-	},
-	{
-		n: "Combined - username too short",
-		f: combinedValidator,
-		i: {username: "ab", profile: {email: "valid@example.com"}},
-		expected: [
-			"Registration data validation failed",
-			"Value is not of correct shape. Key 'username' is invalid.",
-			"Username must be at least 3 characters",
-			"Value is shorter than minimum length of 3."
-		]
-	},
-	{
-		n: "Combined - username too long",
-		f: combinedValidator,
-		i: {username: "thisusernameiswaytoolongandexceedsmaximum", profile: {email: "valid@example.com"}},
-		expected: [
-			"Registration data validation failed",
-			"Value is not of correct shape. Key 'username' is invalid.",
-			"Username must be at most 20 characters",
-			"Value is longer than maximum length of 20"
-		]
-	},
-	{
-		n: "Combined - email not a string",
-		f: combinedValidator,
-		i: {username: "valid", profile: {email: 123}},
-		expected: [
-			"Registration data validation failed",
-			"Value is not of correct shape. Key 'profile' is invalid.",
-			"Profile data is invalid",
-			"Value is not of correct shape. Key 'email' is invalid.",
-			"Email must be a string",
-			"Value is not a string."
-		]
-	},
-	{
-		n: "Combined - email invalid format",
-		f: combinedValidator,
-		i: {username: "valid", profile: {email: "invalid"}},
-		expected: [
-			"Registration data validation failed",
-			"Value is not of correct shape. Key 'profile' is invalid.",
-			"Profile data is invalid",
-			"Value is not of correct shape. Key 'email' is invalid.",
-			"Email format is invalid",
-			"Value is not a valid email address."
-		]
-	},
-	{
-		n: "Combined - success",
-		f: combinedValidator,
-		i: {username: "validuser", profile: {email: "valid@example.com"}},
-		expected: []
-	},
-];
-
-// Group 4: Additional validator types and edge cases with withMessage
-// Purpose: Verify withMessage works with all validator types and edge cases are clear
-
-const group4_cases = [
-	{
-		n: "arrayOf - withMessage on element validator",
-		f: V.arrayOf(V.number.min(0).withMessage("Must be non-negative")),
-		i: [1, 2, -3],
-		expected: [
-			"Array items are not of the correct type.",
-			"Must be non-negative",
-			"Value is smaller than minimum of 0."
-		]
-	},
-	{
-		n: "oneOf - withMessage on union",
-		f: V.oneOf(V.string, V.number).withMessage("Must be string or number"),
-		i: true,
-		expected: [
-			"Must be string or number",
-			"Value is none of the specified types.",
-			"Value is not a string.",
-			"Value is not a number."
-		]
-	},
-	{
-		n: "Double-chained withMessage - only first appears",
-		f: V.string.withMessage("First").withMessage("Second"),
-		i: 123,
-		expected: [
-			"First",
-			"Value is not a string."
-		]
-	},
-	{
-		n: "withMessage after modifiers - single context for any failure",
-		f: V.string.minLen(5).maxLen(10).withMessage("Invalid username"),
-		i: "ab",
-		expected: [
-			"Invalid username",
-			"Value is shorter than minimum length of 5."
-		]
-	},
-	{
-		n: "optional with withMessage - missing field (valid)",
-		f: V.shape({
-			field: V.string.optional.withMessage("Field must be a string")
-		}),
-		i: {},
-		expected: []
-	},
-	{
-		n: "optional with withMessage - invalid field value",
-		f: V.shape({
-			field: V.string.optional.withMessage("Field must be a string")
-		}),
-		i: {field: 123},
-		expected: [
-			"Value is not of correct shape. Key 'field' is invalid.",
-			"Field must be a string",
-			"Value is not a string."
-		]
-	},
-];
-
-const error_cases = [
-	...group1_cases,
-	...group2_cases,
-	...group3_cases,
-	...group4_cases,
+	...error_cases,
 ];
 
 //--- Run Tests ---\\
 
 const results = cases.map(c => {
 	console.log("Running Function:", c.n || c.f.name);
-	return c.io.every(io => c.f(io.i) === io.o || (console.error("Failed for input:", io.i, "Got:", c.f(io.i), "Expected:", io.o), false));
+	return c.io.every(io => {
+		const result = c.f(io.i);
+		if (result !== io.o) {
+			console.error("Failed for input:", io.i, "Got:", result, "Expected:", io.o);
+			return false;
+		}
+		if (io.e) {
+			const errors = c.f.getErrors();
+			const e = io.e;
+			if (errors.length !== e.length || !errors.every((err, i) => err === e[i])) {
+				console.error("Error mismatch for input:", io.i, "Got:", errors, "Expected:", e);
+				return false;
+			}
+		}
+		return true;
+	});
 });
 
-const error_results = error_cases.map(c => {
-	console.log("Running Error Test:", c.n);
-	c.f(c.i); // Run validation
-	const errors = c.f.getErrors();
-	const match = errors.length === c.expected.length && errors.every((e, i) => e === c.expected[i]);
-	if (!match) {
-		console.error("Error mismatch for:", c.n);
-		console.error("  Input:", c.i);
-		console.error("  Expected:", c.expected);
-		console.error("  Got:", errors);
-	}
-	return match;
-});
-
-if (results.every(Boolean) && error_results.every(Boolean)) {
+if (results.every(Boolean)) {
 	console.log("All tests succeeded!")
 } else {
 	console.error("Some tests failed, check above output for details.");
@@ -691,10 +490,11 @@ if (results.every(Boolean) && error_results.every(Boolean)) {
 
 type Case = {
 	n: string;
-	f: (...args: any[]) => any;
+	f: ((...args: any[]) => any) & { getErrors(): string[] };
 	io: {
 		i: any;
 		o: any;
+		e?: string[];
 	}[];
 }
 

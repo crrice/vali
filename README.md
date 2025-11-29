@@ -166,6 +166,13 @@ V.arrayOf(V.number)(["str"])   // false, not all elements are numbers
 V.arrayOf(V.number)([1, 2, 3]) // true
 V.arrayOf(V.number)([])        // true, empty arrays are valid for any array type
 
+// Check if value is an object where all values are of a certain type:
+
+V.mapOf(V.number)({})              // true, empty objects are valid
+V.mapOf(V.number)({a: 1, b: 2})    // true
+V.mapOf(V.number)({a: "x", b: 2})  // false, not all values are numbers
+V.mapOf(V.string)(["a", "b"])      // false, input is not an object
+
 // Check if value is one of a few enumerated types:
 
 V.oneOf(V.string, V.number)(4)    // true, input is number
@@ -374,6 +381,7 @@ With arguments:
 
  - `V.literal(value)` Returns true if its input is exactly (===) the same as the passed value.
  - `V.arrayOf(validator)` Returns true if the input is an array and all members of the array are of the specified type.
+ - `V.mapOf(validator)` Returns true if the input is an object and all values in the object are of the specified type.
  - `V.oneOf(...validators)` Returns true if the input is one of the specified types.
  - `V.allOf(...validators)` Returns true if the input is all of the specified types.
  - `V.shape(object)` Returns true if the input is an object that matches the types of all specified keys.
